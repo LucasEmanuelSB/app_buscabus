@@ -1,6 +1,5 @@
-import 'package:app_buscabus/models/Route.dart';
+import 'package:app_buscabus/models/Routes.dart';
 import 'package:app_buscabus/models/Bus.dart';
-import 'package:app_buscabus/models/BusStop.dart';
 import 'package:app_buscabus/models/Calendar.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -10,7 +9,7 @@ part 'Itinerary.g.dart';
 class Itinerary {
   int id;
   Bus bus;
-  Route route;
+  Routes route;
   Calendar calendar;
 
   Itinerary(

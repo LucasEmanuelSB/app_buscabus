@@ -41,10 +41,6 @@ class _AddAdressesState extends State<AddAdresses> {
       location.street = first.thoroughfare == null ? "" : first.thoroughfare;
       location.number =
           first.subThoroughfare == null ? "" : first.subThoroughfare;
-      location.globalPosition = new GlobalPosition();
-      location.globalPosition.latitude = coordinates.latitude;
-      location.globalPosition.longitude = first.coordinates.longitude;
-
       return location;
     } else
       return null;
@@ -59,28 +55,13 @@ class _AddAdressesState extends State<AddAdresses> {
       'Content-type': 'application/json',
       'Accept': 'application/json',
     };
-
-    Map<String,dynamic> aux = newAdress.globalPosition.toJson();
-    String bodyGlobalPosition = jsonEncode(aux);
-    http.Response responseGlobalPosition = await http.post(
-        Constants.url_globalPosition,
-        headers: headers,
-        body: bodyGlobalPosition);
-
-    GlobalPosition response =
-        GlobalPosition.fromJson(jsonDecode(responseGlobalPosition.body));
     //print(response.id);
-    newAdress.globalPosition.id = response.id;
     String bodyAdress = jsonEncode(newAdress.toJson());
     try {
       //print(responseGlobalPosition.body);
       http.Response responseAdress = await http.post(Constants.url_adresses,
           headers: headers, body: bodyAdress);
       print(responseAdress.statusCode.toString() + " \n " + bodyAdress + "\n");
-      print(responseGlobalPosition.statusCode.toString() +
-          " \n " +
-          bodyGlobalPosition +
-          "\n");
     } catch (error) {
       print(error);
     }

@@ -13,7 +13,6 @@ class Adress {
   String street;
   String cep;
   String number;
-  GlobalPosition globalPosition;
 
   Adress(
       {this.id,
@@ -23,8 +22,7 @@ class Adress {
       this.neighborhood,
       this.street,
       this.cep,
-      this.number,
-      this.globalPosition});
+      this.number});
 
   factory Adress.fromJson(Map<String, dynamic> data) => _$AdressFromJson(data);
 

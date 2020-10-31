@@ -16,7 +16,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 // An enum to identify navigation index
 enum Navigation { BUS, MAP, MURAL }
 
-List<bool> filterchips = [false, false, false];
+List<bool> filterchips = [false, false, false, false];
 
 class NavigationBloc {
   //BehaviorSubject is from rxdart package

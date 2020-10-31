@@ -1,22 +1,21 @@
 import 'package:app_buscabus/models/BusStop.dart';
 import 'package:app_buscabus/models/Itinerary.dart';
-import 'package:app_buscabus/models/Point.dart';
 import 'package:json_annotation/json_annotation.dart';
 
-part 'Route.g.dart';
+part 'Routes.g.dart';
 
 @JsonSerializable(explicitToJson: true)
-class Route {
+class Routes {
   int id;
   List<BusStop> busStops;
+  BusStop start;
+  BusStop end;
   List<Itinerary> itinerarys;
-  List<Point> points;
+  Routes({this.id, this.busStops, this.start, this.end,this.itinerarys});
 
-  Route({this.id, this.busStops, this.itinerarys, this.points});
+  factory Routes.fromJson(Map<String, dynamic> data) => _$RoutesFromJson(data);
 
-  factory Route.fromJson(Map<String, dynamic> data) => _$RouteFromJson(data);
-
-  Map<String, dynamic> toJson() => _$RouteToJson(this);
+  Map<String, dynamic> toJson() => _$RoutesToJson(this);
 
 /* 
   static Future<List<Route>> getList() async {

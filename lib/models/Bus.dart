@@ -6,9 +6,7 @@ import 'dart:async';
 import 'package:app_buscabus/models/BusDriver.dart';
 import 'package:app_buscabus/models/Itinerary.dart';
 import 'package:app_buscabus/models/GlobalPosition.dart';
-import 'package:app_buscabus/models/Person.dart';
 import 'package:json_annotation/json_annotation.dart';
-
 part 'Bus.g.dart';
 
 @JsonSerializable(explicitToJson: true)
@@ -16,12 +14,11 @@ class Bus {
   int id;
   int line;
   bool isAvailable;
+  double velocity;
+  double eta;
   BusDriver busDriver;
   Itinerary itinerary;
   GlobalPosition currentPosition;
-  List<Person> persons;
-  String startAdress;
-  String endAdress;
 
   Bus(
       {this.id,
@@ -30,9 +27,9 @@ class Bus {
       this.busDriver,
       this.itinerary,
       this.currentPosition,
-      this.persons,
-      this.startAdress,
-      this.endAdress});
+      this.velocity,
+      this.eta
+      });
 
   factory Bus.fromJson(Map<String, dynamic> data) => _$BusFromJson(data);
 

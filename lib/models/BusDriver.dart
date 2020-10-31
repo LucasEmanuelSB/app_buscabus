@@ -1,5 +1,4 @@
 import 'package:app_buscabus/models/Bus.dart';
-import 'package:app_buscabus/models/RatingBusDriver.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'BusDriver.g.dart';
@@ -8,17 +7,15 @@ part 'BusDriver.g.dart';
 class BusDriver {
   int id;
   String name;
-  double averageRate;
-  List<RatingBusDriver> usersRatings;
-  List<Bus> buses;
 
   BusDriver(
-      {this.id, this.name, this.averageRate, this.usersRatings, this.buses});
+      {this.id, this.name});
 
   factory BusDriver.fromJson(Map<String, dynamic> data) =>
       _$BusDriverFromJson(data);
 
   Map<String, dynamic> toJson() => _$BusDriverToJson(this);
+  
 /*   static Future<List<BusDriver>> getList() async {
     http.Response response = await http.get(Constants.url_bus_drivers);
 

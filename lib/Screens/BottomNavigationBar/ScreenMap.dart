@@ -12,8 +12,6 @@ import 'dart:ui' as ui;
 import 'package:app_buscabus/Screens/BottomNavigationBar/ScreensPageView.dart';
 import 'dart:math';
 
-import 'package:rxdart/rxdart.dart';
-
 class ScreenMap extends StatefulWidget {
   ScreenMap(
       {this.blocNavigation,
@@ -21,8 +19,9 @@ class ScreenMap extends StatefulWidget {
       this.blocBus,
       this.busWithGps,
       this.blocPosition});
-  bool isSelectedLine;
-  bool isSelectedBusStop;
+  bool isSelectedLines;
+  bool isSelectedRoutes;
+  bool isSelectedBusStops;
   bool isSelectedTerminals;
 
   final NavigationBloc blocNavigation;
@@ -34,9 +33,15 @@ class ScreenMap extends StatefulWidget {
 /*   List<dynamic> _listSelectedMarkers = new List<dynamic>();
   List<Widget> _listSelectedMarkersWidgets = new List<Widget>(); */
   Set<Marker> _allMarkers = new Set<Marker>();
-  Set<Marker> _busStopsMarkers = {};
-  Set<Marker> _busesMarkers = {};
-  Set<Marker> _terminalsMarkers = {};
+  final Set<Marker> _busStopsMarkers = {};
+  final Set<Marker> _busesMarkers = {};
+  final Set<Marker> _terminalsMarkers = {};
+
+  final List<BitmapDescriptor> myIconsBusStops = new List<BitmapDescriptor>();
+  final List<BitmapDescriptor> myIconsBusTerminals =
+      new List<BitmapDescriptor>();
+  BitmapDescriptor myIconBus;
+  BitmapDescriptor myIconPerson;
 
   CameraPosition _cameraPosition =
       CameraPosition(target: LatLng(-26.89635815, -48.67252082), zoom: 16);
@@ -48,10 +53,6 @@ class ScreenMap extends StatefulWidget {
 class _ScreenMapState extends State<ScreenMap> {
   Completer<GoogleMapController> controllerMap = new Completer();
 
-  List<BitmapDescriptor> myIconsBusStops = new List<BitmapDescriptor>();
-  List<BitmapDescriptor> myIconsBusTerminals = new List<BitmapDescriptor>();
-  BitmapDescriptor myIconBus;
-  BitmapDescriptor myIconPerson;
   Timer timer;
 
   static List<BusStop> listBusStops = new List<BusStop>();
@@ -95,20 +96,20 @@ class _ScreenMapState extends State<ScreenMap> {
     for (int i = 1; i < Constants.num_icons; i++) {
       getBytesFromAsset('assets/markers/busStop' + i.toString() + '.png', 64)
           .then((onValue) {
-        myIconsBusStops.add(BitmapDescriptor.fromBytes(onValue));
+        widget.myIconsBusStops.add(BitmapDescriptor.fromBytes(onValue));
       });
 
       getBytesFromAsset('assets/markers/terminal' + i.toString() + '.png', 64)
           .then((onValue) {
-        myIconsBusTerminals.add(BitmapDescriptor.fromBytes(onValue));
+        widget.myIconsBusTerminals.add(BitmapDescriptor.fromBytes(onValue));
       });
     }
     getBytesFromAsset('assets/markers/bus.png', 64).then((onValue) {
-      myIconBus = BitmapDescriptor.fromBytes(onValue);
+      widget.myIconBus = BitmapDescriptor.fromBytes(onValue);
     });
 
     getBytesFromAsset('assets/markers/person.png', 64).then((onValue) {
-      myIconPerson = BitmapDescriptor.fromBytes(onValue);
+      widget.myIconPerson = BitmapDescriptor.fromBytes(onValue);
     });
   }
 
@@ -133,9 +134,8 @@ class _ScreenMapState extends State<ScreenMap> {
             infoWindow: InfoWindow(
                 title: element.adress.neighborhood,
                 snippet: element.adress.street),
-            position: LatLng(element.adress.globalPosition.latitude,
-                element.adress.globalPosition.longitude),
-            icon: myIconsBusStops.elementAt(element.id - 1)));
+            position: LatLng(element.latitude, element.longitude),
+            icon: widget.myIconsBusStops.elementAt(element.id - 1)));
       } else {
         widget._terminalsMarkers.add(new Marker(
             markerId: MarkerId('Terminal ' + element.id.toString()),
@@ -149,9 +149,8 @@ class _ScreenMapState extends State<ScreenMap> {
             infoWindow: InfoWindow(
                 title: element.adress.neighborhood,
                 snippet: element.adress.street),
-            position: LatLng(element.adress.globalPosition.latitude,
-                element.adress.globalPosition.longitude),
-            icon: myIconsBusTerminals.elementAt(element.id - 1)));
+            position: LatLng(element.latitude, element.longitude),
+            icon: widget.myIconsBusTerminals.elementAt(element.id - 1)));
       }
     });
   }
@@ -181,18 +180,20 @@ class _ScreenMapState extends State<ScreenMap> {
                   }),
               position: LatLng(element.currentPosition.latitude,
                   element.currentPosition.longitude),
-              icon: myIconBus /* BitmapDescriptor.defaultMarker */));
+              icon: widget.myIconBus /* BitmapDescriptor.defaultMarker */));
         }
       }
     });
   }
 
   _addMarkerPerson(Position position) {
+    widget._allMarkers
+        .removeWhere((marker) => marker.markerId == MarkerId("Person"));
     widget._allMarkers.add(new Marker(
         markerId: MarkerId("Person"),
         position: LatLng(position.latitude, position.longitude),
         infoWindow: InfoWindow(title: "Estou aqui"),
-        icon: /* BitmapDescriptor.defaultMarker */ myIconPerson));
+        icon: /* BitmapDescriptor.defaultMarker */ widget.myIconPerson));
   }
 
   _loadMarkers() async {
@@ -209,11 +210,11 @@ class _ScreenMapState extends State<ScreenMap> {
     Marker busMarker = Marker(
         markerId: MarkerId(busMarkerId),
         position: markerPosition, // updated position
-        icon: myIconBus);
+        icon: widget.myIconBus);
 
     setState(() {
       widget._allMarkers.removeWhere((m) => m.markerId.value == busMarkerId);
-      widget._allMarkers.add(busMarker);
+      if (widget.isSelectedLines) widget._allMarkers.add(busMarker);
     });
     print("Latitude: " + widget.busWithGps.currentPosition.latitude.toString());
     print(
@@ -334,18 +335,12 @@ class _ScreenMapState extends State<ScreenMap> {
               stream: widget.blocFilter.output,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  widget.isSelectedLine = snapshot.data[0];
-                  widget.isSelectedBusStop = snapshot.data[2];
-                  widget.isSelectedTerminals = snapshot.data[1];
+                  widget.isSelectedLines = snapshot.data[0];
+                  widget.isSelectedRoutes = snapshot.data[1];
+                  widget.isSelectedBusStops = snapshot.data[3];
+                  widget.isSelectedTerminals = snapshot.data[2];
 
                   return AppBar(
-                    leading: IconButton(
-                      onPressed: () => {},
-                      icon: Icon(
-                        Icons.menu,
-                        color: Constants.accent_blue,
-                      ),
-                    ),
                     backgroundColor: Constants.white_grey,
                     actions: [
                       Padding(
@@ -358,11 +353,11 @@ class _ScreenMapState extends State<ScreenMap> {
                             onSelected: (bool selected) async {
                               if (this.mounted) {
                                 setState(() {
-                                  widget.isSelectedLine =
-                                      !widget.isSelectedLine;
+                                  widget.isSelectedLines =
+                                      !widget.isSelectedLines;
                                   widget.blocFilter
-                                      .changeChips(0, widget.isSelectedLine);
-                                  if (widget.isSelectedLine) {
+                                      .changeChips(0, widget.isSelectedLines);
+                                  if (widget.isSelectedLines) {
                                     widget._allMarkers = [
                                       widget._allMarkers,
                                       widget._busesMarkers
@@ -387,11 +382,57 @@ class _ScreenMapState extends State<ScreenMap> {
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
-                                color: widget.isSelectedLine
+                                color: widget.isSelectedLines
                                     ? Constants.white_grey
                                     : Constants.accent_blue),
-                            selected: widget.isSelectedLine,
+                            selected: widget.isSelectedLines,
                             selectedColor: Constants.green,
+                            checkmarkColor: Constants.white_grey),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12.0),
+                        child: FilterChip(
+                            elevation: 3,
+                            backgroundColor: Constants.white_grey,
+                            showCheckmark: false,
+                            label: Text('ROTAS'),
+                            onSelected: (bool selected) async {
+                              if (this.mounted) {
+                                setState(() {
+                                  widget.isSelectedRoutes =
+                                      !widget.isSelectedRoutes;
+                                  widget.blocFilter
+                                      .changeChips(1, widget.isSelectedRoutes);
+                                  if (widget.isSelectedRoutes) {
+                                    widget._allMarkers = [
+                                      widget._allMarkers,
+                                      widget._busesMarkers
+                                    ].expand((x) => x).toSet();
+                                  } else {
+                                    List<Marker> toRemove = [];
+                                    widget._allMarkers.forEach((element) {
+                                      if (element.markerId.value
+                                              .split(' ')
+                                              .toList()
+                                              .elementAt(0) ==
+                                          'Bus') {
+                                        toRemove.add(element);
+                                      }
+                                    });
+                                    widget._allMarkers.removeWhere((element) =>
+                                        toRemove.contains(element));
+                                  }
+                                });
+                              }
+                            },
+                            labelStyle: TextStyle(
+                                fontFamily: 'Lato',
+                                fontWeight: FontWeight.bold,
+                                color: widget.isSelectedRoutes
+                                    ? Constants.white_grey
+                                    : Constants.accent_blue),
+                            selected: widget.isSelectedRoutes,
+                            selectedColor: Constants.accent_grey,
                             checkmarkColor: Constants.white_grey),
                       ),
                       Padding(
@@ -407,7 +448,7 @@ class _ScreenMapState extends State<ScreenMap> {
                                   widget.isSelectedTerminals =
                                       !widget.isSelectedTerminals;
                                   widget.blocFilter.changeChips(
-                                      1, widget.isSelectedTerminals);
+                                      2, widget.isSelectedTerminals);
                                   if (widget.isSelectedTerminals) {
                                     widget._allMarkers = [
                                       widget._allMarkers,
@@ -450,11 +491,11 @@ class _ScreenMapState extends State<ScreenMap> {
                             onSelected: (bool selected) async {
                               if (this.mounted) {
                                 setState(() {
-                                  widget.isSelectedBusStop =
-                                      !widget.isSelectedBusStop;
-                                  widget.blocFilter
-                                      .changeChips(2, widget.isSelectedBusStop);
-                                  if (widget.isSelectedBusStop) {
+                                  widget.isSelectedBusStops =
+                                      !widget.isSelectedBusStops;
+                                  widget.blocFilter.changeChips(
+                                      3, widget.isSelectedBusStops);
+                                  if (widget.isSelectedBusStops) {
                                     widget._allMarkers = [
                                       widget._allMarkers,
                                       widget._busStopsMarkers
@@ -479,16 +520,19 @@ class _ScreenMapState extends State<ScreenMap> {
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
-                                color: widget.isSelectedBusStop
+                                color: widget.isSelectedBusStops
                                     ? Constants.white_grey
                                     : Constants.accent_blue),
-                            selected: widget.isSelectedBusStop,
+                            selected: widget.isSelectedBusStops,
                             selectedColor: Constants.brightness_blue,
                             checkmarkColor: Constants.white_grey),
                       ),
                     ],
                   );
                 }
+                return Center(
+                  child: Text("Nenhum dado a ser exibido!"),
+                );
               }),
         ),
         body: Stack(children: [

@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:app_buscabus/models/Adress.dart';
-import 'package:app_buscabus/models/Route.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'BusStop.g.dart';
@@ -13,10 +12,11 @@ part 'BusStop.g.dart';
 class BusStop {
   int id;
   bool isTerminal;
+  double latitude;
+  double longitude;
   Adress adress;
-  List<Route> routes;
 
-  BusStop({this.id, this.isTerminal, this.adress, this.routes});
+  BusStop({this.id, this.isTerminal, this.adress,this.latitude,this.longitude});
 
   factory BusStop.fromJson(Map<String, dynamic> data) =>
       _$BusStopFromJson(data);
@@ -31,7 +31,6 @@ class BusStop {
       print(dadosJson);
       List<BusStop> busStops = dadosJson.map<BusStop>((map) {
         return BusStop.fromJson(map);
-
       }).toList();
       return busStops;
     } catch (error) {

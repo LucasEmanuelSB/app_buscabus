@@ -10,7 +10,6 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
-import 'package:smooth_star_rating/smooth_star_rating.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:badges/badges.dart';
@@ -102,21 +101,13 @@ class _ScreenBusState extends State<ScreenBus> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          backgroundColor: Constants.white_grey,
-          leading: IconButton(
-            onPressed: () => {},
-            icon: Icon(
-              Icons.menu,
-              color: Constants.accent_blue,
-            ),
-          )),
+          backgroundColor: Constants.white_grey),
       body: StreamBuilder<Object>(
           stream: widget.blocBus.output,
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               Bus bus = snapshot.data;
               String nameBusDriver = "";
-              double averageRateBusDriver = 0.0;
               String busStopsFromItinerarys = "";
               String startNeighborhood = "Bairro Indisponível",
                   endNeighborhood = "Bairro Indisponível",
@@ -129,7 +120,6 @@ class _ScreenBusState extends State<ScreenBus> {
               String line = bus.line.toString();
               if (bus.busDriver != null) {
                 nameBusDriver = bus.busDriver.name;
-                averageRateBusDriver = bus.busDriver.averageRate;
               }
               if (bus.itinerary != null) {
                 if (bus.itinerary.calendar != null) {
@@ -219,7 +209,7 @@ class _ScreenBusState extends State<ScreenBus> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          _information(averageRateBusDriver, nameBusDriver,
+                          _information(nameBusDriver,
                               line, startNeighborhood, endNeighborhood),
                           _map(startBusStopId, endBusStopId, startStreet,
                               endStreet),
@@ -461,7 +451,7 @@ class _ScreenBusState extends State<ScreenBus> {
     return list;
   }
 
-  Widget _information(double averageRate, String nameBusDriver, String line,
+  Widget _information(String nameBusDriver, String line,
       String startNeighborhood, String endNeighborhood) {
     return Container(
       child: Row(
@@ -471,23 +461,6 @@ class _ScreenBusState extends State<ScreenBus> {
           Container(
             child: Column(
               children: [
-                SmoothStarRating(
-                  rating: rating,
-                  isReadOnly: false,
-                  color: Colors.amber,
-                  borderColor: Colors.amberAccent,
-                  size: 22,
-                  filledIconData: Icons.star,
-                  halfFilledIconData: Icons.star_half,
-                  defaultIconData: Icons.star_border,
-                  starCount: 5,
-                  allowHalfRating: true,
-                  spacing: 2.0,
-                  onRated: (value) {
-                    print("rating value -> $value");
-                    // print("rating value dd -> ${value.truncate()}");
-                  },
-                ),
                 Card(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20.0),

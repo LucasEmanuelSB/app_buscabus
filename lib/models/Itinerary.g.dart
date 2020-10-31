@@ -14,14 +14,13 @@ Itinerary _$ItineraryFromJson(Map<String, dynamic> json) {
           : Bus.fromJson(json['bus'] as Map<String, dynamic>),
       route: json['route'] == null
           ? null
-          : Route.fromJson(json['route'] as Map<String, dynamic>),
+          : Routes.fromJson(json['route'] as Map<String, dynamic>),
       calendar: json['calendar'] == null
           ? null
           : Calendar.fromJson(json['calendar'] as Map<String, dynamic>));
 }
 
 Map<String, dynamic> _$ItineraryToJson(Itinerary instance) => <String, dynamic>{
-
       'bus': instance.bus?.toJson(),
       'route': instance.route?.toJson(),
       'calendar': instance.calendar?.toJson(),

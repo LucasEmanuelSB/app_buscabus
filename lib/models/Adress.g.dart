@@ -15,15 +15,11 @@ Adress _$AdressFromJson(Map<String, dynamic> json) {
     neighborhood: json['neighborhood'] == null ? 'x': json['neighborhood'] as String,
     street: json['street'] == null ? 'x': json['street'] as String,
     cep: json['cep'] == null ? 'x': json['cep'] as String,
-    number: json['number'] == null ? 'x': json['number'] as String,
-    globalPosition: json['globalPosition'] == null
-        ? null
-        : GlobalPosition.fromJson(json['globalPosition'] as Map<String, dynamic>),
+    number: json['number'] == null ? 'x': json['number'] as String
   );
 }
 
 Map<String, dynamic> _$AdressToJson(Adress instance) => <String, dynamic>{
-      'globalPositionId': instance.globalPosition.id,
       'country': instance.country,
       'uf': instance.uf,
       'city': instance.city,
@@ -31,5 +27,4 @@ Map<String, dynamic> _$AdressToJson(Adress instance) => <String, dynamic>{
       'street': instance.street,
       'cep': instance.cep,
       'number': instance.number,
-      //'globalPosition': instance.globalPosition?.toJson(),
     };
