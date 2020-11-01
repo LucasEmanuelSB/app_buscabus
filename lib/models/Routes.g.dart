@@ -14,7 +14,7 @@ Routes _$RoutesFromJson(Map<String, dynamic> json) {
           : BusStop.fromJson(json['start'] as Map<String, dynamic>),
       end: json['end'] == null
           ? null
-          : BusStop.fromJson(json['start'] as Map<String, dynamic>),
+          : BusStop.fromJson(json['end'] as Map<String, dynamic>),
       busStops: (json['path'] as List)
           ?.map((e) =>
               e == null ? null : BusStop.fromJson(e as Map<String, dynamic>))

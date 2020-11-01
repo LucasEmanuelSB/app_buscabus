@@ -1,50 +1,68 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:app_buscabus/cameraFunctions.dart';
 import 'package:app_buscabus/Constants.dart';
 import 'package:app_buscabus/models/Bus.dart';
 import 'package:app_buscabus/models/BusStop.dart';
+import 'package:app_buscabus/models/Routes.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:flutter/services.dart' show ByteData, rootBundle;
 import 'dart:ui' as ui;
 import 'package:app_buscabus/Screens/BottomNavigationBar/ScreensPageView.dart';
-import 'dart:math';
 
 class ScreenMap extends StatefulWidget {
   ScreenMap(
       {this.blocNavigation,
+      this.blocCameraPosition,
       this.blocFilter,
       this.blocBus,
       this.busWithGps,
-      this.blocPosition});
-  bool isSelectedLines;
-  bool isSelectedRoutes;
-  bool isSelectedBusStops;
-  bool isSelectedTerminals;
+      this.blocPosition,
+      this.blocRoute,
+      this.blocBusStop,
+      this.listTerminals,
+      this.listBuses,
+      this.listBusStops,
+      this.listRoutes});
+  bool isSelectedLines = false;
+  bool isSelectedRoutes = false;
+  bool isSelectedBusStops = false;
+  bool isSelectedTerminals = false;
 
   final NavigationBloc blocNavigation;
+  final CameraPositionBloc blocCameraPosition;
   final FilterBloc blocFilter;
   final BusBloc blocBus;
+  final RouteBloc blocRoute;
+  final BusStopBloc blocBusStop;
   final PositionBloc blocPosition;
+  final List<Bus> listBuses;
+  final List<BusStop> listBusStops;
+  final List<BusStop> listTerminals;
+  final List<Routes> listRoutes;
+
+  CameraPosition cameraPosition =
+      CameraPosition(target: LatLng(-26.89635815, -48.67252082), zoom: 16);
 
   Bus busWithGps;
-/*   List<dynamic> _listSelectedMarkers = new List<dynamic>();
-  List<Widget> _listSelectedMarkersWidgets = new List<Widget>(); */
+
   Set<Marker> _allMarkers = new Set<Marker>();
   final Set<Marker> _busStopsMarkers = {};
   final Set<Marker> _busesMarkers = {};
   final Set<Marker> _terminalsMarkers = {};
+  Set<Polyline> _polylines = {};
+  List<LatLng> polylineCoordinates = [];
+  PolylinePoints polylinePoints = new PolylinePoints();
 
   final List<BitmapDescriptor> myIconsBusStops = new List<BitmapDescriptor>();
   final List<BitmapDescriptor> myIconsBusTerminals =
       new List<BitmapDescriptor>();
   BitmapDescriptor myIconBus;
   BitmapDescriptor myIconPerson;
-
-  CameraPosition _cameraPosition =
-      CameraPosition(target: LatLng(-26.89635815, -48.67252082), zoom: 16);
 
   @override
   _ScreenMapState createState() => _ScreenMapState();
@@ -54,17 +72,12 @@ class _ScreenMapState extends State<ScreenMap> {
   Completer<GoogleMapController> controllerMap = new Completer();
 
   Timer timer;
-
-  static List<BusStop> listBusStops = new List<BusStop>();
-  static List<Bus> listBuses = new List<Bus>();
-
   double pixelRatio;
   String mapStyle;
 
   @override
   void initState() {
     super.initState();
-
     _defineMapStyle(); //define o estilo do mapa
     _loadBitmapDescriptors(); // carrega assets dos markers
     // carrega listner para posicao do usuario no mapa
@@ -113,50 +126,90 @@ class _ScreenMapState extends State<ScreenMap> {
     });
   }
 
-  _loadLists() async {
-    listBusStops = await BusStop.getList();
-    listBusStops.removeWhere((element) => element.adress == null);
-    listBuses = await Bus.getList();
+  _addPolylinesRoutes() {
+    widget.listRoutes.forEach((element) async {
+      List<PointLatLng> polylinePoints = new List<PointLatLng>();
+      PolylineResult resultStart = await widget.polylinePoints
+          ?.getRouteBetweenCoordinates(
+              Constants.googleAPIKey,
+              PointLatLng(element.start.latitude, element.start.longitude),
+              PointLatLng(
+                  element.busStops[0].latitude, element.busStops[0].longitude));
+      polylinePoints = resultStart.points;
+
+      PolylineResult resultPath;
+      for (int i = 0; i < element.busStops.length - 1; i++) {
+        resultPath = await widget.polylinePoints?.getRouteBetweenCoordinates(
+            Constants.googleAPIKey,
+            PointLatLng(
+                element.busStops[i].latitude, element.busStops[i].longitude),
+            PointLatLng(element.busStops[i + 1].latitude,
+                element.busStops[i + 1].longitude));
+        polylinePoints =
+            [polylinePoints, resultPath.points].expand((x) => x).toList();
+      }
+
+      PolylineResult resultEnd = await widget.polylinePoints
+          ?.getRouteBetweenCoordinates(
+              Constants.googleAPIKey,
+              PointLatLng(
+                  element.busStops[element.busStops.length - 1].latitude,
+                  element.busStops[element.busStops.length - 1].longitude),
+              PointLatLng(element.end.latitude, element.end.longitude));
+
+      polylinePoints =
+          [polylinePoints, resultEnd.points].expand((x) => x).toList();
+
+      if (polylinePoints.isNotEmpty) {
+        // loop through all PointLatLng points and convert them
+        // to a list of LatLng, required by the Polyline
+        polylinePoints.forEach((PointLatLng point) {
+          widget.polylineCoordinates
+              .add(LatLng(point.latitude, point.longitude));
+        });
+      }
+      setState(() {
+        // create a Polyline instance
+        // with an id, an RGB color and the list of LatLng pairs
+        Polyline polyline = Polyline(
+            polylineId: PolylineId("Route " + element.id.toString()),
+            color: Constants.accent_grey,
+            points: widget.polylineCoordinates);
+
+        // add the constructed polyline as a set of points
+        // to the polyline set, which will eventually
+        // end up showing up on the map
+        widget._polylines.add(polyline);
+      });
+    });
+  }
+
+  _addMarkerTerminals() {
+    widget.listTerminals.forEach((element) {
+      widget._terminalsMarkers.add(new Marker(
+          markerId: MarkerId('Terminal ' + element.id.toString()),
+          infoWindow: InfoWindow(
+              title: element.adress.neighborhood,
+              snippet: element.adress.street),
+          position: LatLng(element.latitude, element.longitude),
+          icon: widget.myIconsBusTerminals.elementAt(element.id - 1)));
+    });
   }
 
   _addMarkersBusStops() {
-    listBusStops.forEach((element) {
-      if (!element.isTerminal) {
-        widget._busStopsMarkers.add(new Marker(
-            markerId: MarkerId('BusStop ' + element.id.toString()),
-            onTap: () {
-/*                 if (widget._listSelectedMarkers.contains(element)) {
-                  _removeSelectedMarkers(element);
-                } else {
-                  _addSelectedMarkers(element);
-                } */
-            },
-            infoWindow: InfoWindow(
-                title: element.adress.neighborhood,
-                snippet: element.adress.street),
-            position: LatLng(element.latitude, element.longitude),
-            icon: widget.myIconsBusStops.elementAt(element.id - 1)));
-      } else {
-        widget._terminalsMarkers.add(new Marker(
-            markerId: MarkerId('Terminal ' + element.id.toString()),
-            onTap: () {
-/*                 if (widget._listSelectedMarkers.contains(element)) {
-                  _removeSelectedMarkers(element);
-                } else {
-                  _addSelectedMarkers(element);
-                } */
-            },
-            infoWindow: InfoWindow(
-                title: element.adress.neighborhood,
-                snippet: element.adress.street),
-            position: LatLng(element.latitude, element.longitude),
-            icon: widget.myIconsBusTerminals.elementAt(element.id - 1)));
-      }
+    widget.listBusStops.forEach((element) {
+      widget._busStopsMarkers.add(new Marker(
+          markerId: MarkerId('BusStop ' + element.id.toString()),
+          infoWindow: InfoWindow(
+              title: element.adress.neighborhood,
+              snippet: element.adress.street),
+          position: LatLng(element.latitude, element.longitude),
+          icon: widget.myIconsBusStops.elementAt(element.id - 1)));
     });
   }
 
   _addMarkersBuses() {
-    listBuses.forEach((element) {
+    widget.listBuses.forEach((element) {
       if (element.id == Constants.busWithGpsId) {
         widget.busWithGps = element;
       }
@@ -164,13 +217,6 @@ class _ScreenMapState extends State<ScreenMap> {
         if (element.currentPosition != null) {
           widget._busesMarkers.add(new Marker(
               markerId: MarkerId('Bus ' + element.id.toString()),
-              onTap: () {
-/*                 if (widget._listSelectedMarkers.contains(element)) {
-                  _removeSelectedMarkers(element);
-                } else {
-                  _addSelectedMarkers(element);
-                } */
-              },
               infoWindow: InfoWindow(
                   title: "Linha " + element.line.toString(),
                   snippet: "Ver detalhes",
@@ -196,10 +242,10 @@ class _ScreenMapState extends State<ScreenMap> {
         icon: /* BitmapDescriptor.defaultMarker */ widget.myIconPerson));
   }
 
-  _loadMarkers() async {
-    await _loadLists();
+  _loadMarkers() {
     _addMarkersBuses();
     _addMarkersBusStops();
+    _addMarkerTerminals();
   }
 
   _updateBusLocation() async {
@@ -221,108 +267,13 @@ class _ScreenMapState extends State<ScreenMap> {
         "Longitude: " + widget.busWithGps.currentPosition.longitude.toString());
   }
 
-/*   _removeSelectedMarkers(dynamic element) {
-    for (int index = 0; index < widget._listSelectedMarkers.length; index++) {
-      if (widget._listSelectedMarkers.elementAt(index) == element) {
-        widget._listSelectedMarkersWidgets.removeAt(index);
-        widget._listSelectedMarkers.removeAt(index);
-      }
-    }
-  } */
-
-/*   _addSelectedMarkers(dynamic element) {
-    widget._listSelectedMarkers.add(element);
-    widget._listSelectedMarkersWidgets.add(InputChip(
-        deleteIconColor: Constants.accent_grey,
-        visualDensity: VisualDensity.comfortable,
-        label: Text(
-          element is BusStop
-              ? element.isTerminal
-                  ? "TERMINAL " + element.id.toString()
-                  : "PONTO " + element.id.toString()
-              : "LINHA " + element.line.toString(),
-          style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: element is BusStop
-                  ? element.isTerminal
-                      ? Constants.accent_blue
-                      : Constants.brightness_blue
-                  : Constants.green),
-        ),
-        onDeleted: () => print("delete")));
-  } */
-
-  _onMapCreated(GoogleMapController controller) async {
+  _onMapCreated(GoogleMapController controller) {
     controller.setMapStyle(mapStyle);
     controllerMap.complete(controller); // definindo o controller do mapa
-    await _loadMarkers(); // carrega os markers
-
-    timer = Timer.periodic(
-        Duration(seconds: 2), (Timer t) async => await _updateBusLocation());
+    _loadMarkers(); // carrega os markers
+    /*   timer = Timer.periodic(
+        Duration(seconds: 2), (Timer t) async => await _updateBusLocation()); */
   }
-
-  LatLngBounds getBounds(List<Marker> markers) {
-    var lngs = markers.map<double>((m) => m.position.longitude).toList();
-    var lats = markers.map<double>((m) => m.position.latitude).toList();
-
-    double topMost = lngs.reduce(max);
-    double leftMost = lats.reduce(min);
-    double rightMost = lats.reduce(max);
-    double bottomMost = lngs.reduce(min);
-
-    LatLngBounds bounds = LatLngBounds(
-      northeast: LatLng(rightMost, topMost),
-      southwest: LatLng(leftMost, bottomMost),
-    );
-
-    return bounds;
-  }
-
-  _moveCameraBetween(double latitudeOrigin, double latitudeDestiny,
-      double longitudeOrigem, double longitudeDestino) {
-    var nLat, nLon, sLat, sLon;
-
-    double latitudeOrigin, latitudeDestiny, longitudeOrigem, longitudeDestino;
-
-    if (latitudeOrigin <= latitudeDestiny) {
-      sLat = latitudeOrigin;
-      nLat = latitudeDestiny;
-    } else {
-      sLat = latitudeDestiny;
-      nLat = latitudeOrigin;
-    }
-
-    if (longitudeOrigem <= longitudeDestino) {
-      sLon = longitudeOrigem;
-      nLon = longitudeDestino;
-    } else {
-      sLon = longitudeDestino;
-      nLon = longitudeOrigem;
-    }
-
-    _moveCameraBounds(LatLngBounds(
-        northeast: LatLng(nLat, nLon), //nordeste
-        southwest: LatLng(sLat, sLon) //sudoeste
-        ));
-  }
-
-  _moveCameraBounds(LatLngBounds latLngBounds) async {
-    GoogleMapController googleMapController = await controllerMap.future;
-    googleMapController
-        .animateCamera(CameraUpdate.newLatLngBounds(latLngBounds, 100));
-  }
-
-  _moveCamera(CameraPosition cameraPosition) async {
-    GoogleMapController googleMapController = await controllerMap.future;
-    googleMapController
-        .animateCamera(CameraUpdate.newCameraPosition(cameraPosition));
-  }
-
-  _drawScreen() {}
-
-  _searchScreen() {}
-
-  _showFavorites() {}
 
   @override
   Widget build(BuildContext context) {
@@ -335,11 +286,12 @@ class _ScreenMapState extends State<ScreenMap> {
               stream: widget.blocFilter.output,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  widget.isSelectedLines = snapshot.data[0];
-                  widget.isSelectedRoutes = snapshot.data[1];
-                  widget.isSelectedBusStops = snapshot.data[3];
-                  widget.isSelectedTerminals = snapshot.data[2];
-
+                  setState(() {
+                    widget.isSelectedLines = snapshot.data[0];
+                    widget.isSelectedRoutes = snapshot.data[1];
+                    widget.isSelectedTerminals = snapshot.data[2];
+                    widget.isSelectedBusStops = snapshot.data[3];
+                  });
                   return AppBar(
                     backgroundColor: Constants.white_grey,
                     actions: [
@@ -404,23 +356,9 @@ class _ScreenMapState extends State<ScreenMap> {
                                   widget.blocFilter
                                       .changeChips(1, widget.isSelectedRoutes);
                                   if (widget.isSelectedRoutes) {
-                                    widget._allMarkers = [
-                                      widget._allMarkers,
-                                      widget._busesMarkers
-                                    ].expand((x) => x).toSet();
+                                    _addPolylinesRoutes();
                                   } else {
-                                    List<Marker> toRemove = [];
-                                    widget._allMarkers.forEach((element) {
-                                      if (element.markerId.value
-                                              .split(' ')
-                                              .toList()
-                                              .elementAt(0) ==
-                                          'Bus') {
-                                        toRemove.add(element);
-                                      }
-                                    });
-                                    widget._allMarkers.removeWhere((element) =>
-                                        toRemove.contains(element));
+                                    widget._polylines.clear();
                                   }
                                 });
                               }
@@ -542,16 +480,27 @@ class _ScreenMapState extends State<ScreenMap> {
                 builder: (context, snapshot) {
                   if (snapshot.hasData) {
                     _addMarkerPerson(snapshot.data);
-                    return GoogleMap(
-                      mapType: MapType.normal,
-                      initialCameraPosition: widget._cameraPosition,
-                      mapToolbarEnabled: false,
-                      onMapCreated: _onMapCreated,
-                      myLocationEnabled: false,
-                      compassEnabled: false,
-                      zoomControlsEnabled: false,
-                      markers: widget._allMarkers,
-                    );
+                    return StreamBuilder<CameraPosition>(
+                        stream: widget.blocCameraPosition.output,
+                        builder: (contextCamera, snapshotCamera) {
+                          if (snapshotCamera.hasData) {
+                            return GoogleMap(
+                              mapType: MapType.normal,
+                              initialCameraPosition: snapshotCamera.data,
+                              mapToolbarEnabled: false,
+                              onMapCreated: _onMapCreated,
+                              myLocationEnabled: false,
+                              compassEnabled: false,
+                              zoomControlsEnabled: false,
+                              markers: widget._allMarkers,
+                              polylines: widget._polylines,
+                            );
+                          } else {
+                            return Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                        });
                   } else {
                     return Center(
                       child: CircularProgressIndicator(),
@@ -565,7 +514,15 @@ class _ScreenMapState extends State<ScreenMap> {
             child: IconButton(
                 icon: Icon(MdiIcons.selectMultipleMarker),
                 onPressed: () {
-                  _moveCameraBounds(getBounds(widget._allMarkers.toList()));
+                  List<double> lngs = widget._allMarkers
+                      .toList()
+                      .map<double>((m) => m.position.longitude)
+                      .toList();
+                  List<double> lats = widget._allMarkers
+                      .toList()
+                      .map<double>((m) => m.position.latitude)
+                      .toList();
+                  moveCameraBounds(getBounds(lats, lngs), controllerMap);
                 }),
           ),
           Positioned(
@@ -577,10 +534,12 @@ class _ScreenMapState extends State<ScreenMap> {
                     return IconButton(
                         icon: Icon(Icons.my_location),
                         onPressed: () {
-                          _moveCamera(CameraPosition(
-                              target: LatLng(snapshot.data.latitude,
-                                  snapshot.data.longitude),
-                              zoom: 19));
+                          moveCamera(
+                              CameraPosition(
+                                  target: LatLng(snapshot.data.latitude,
+                                      snapshot.data.longitude),
+                                  zoom: 19),
+                              controllerMap);
                         });
                   })),
         ]));

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class Constants {
+  static const String googleAPIKey = "AIzaSyDVGS1rOl8vHtPqoUruCd7NGpSWumGlVIw";
   static const int num_icons = 30;
   static const Color green = Color(0xff1B9227);
   static const Color accent_scarlat = Color(0xffD90429);
@@ -22,8 +23,7 @@ class Constants {
   static const String url_points = url + "points";
   static const String url_globalPosition = url + "globalPositions";
 
-  static const String SERVICE_UUID = 
-      "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+  static const String SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
   static const String CHARACTERISTIC_UUID_TX =
       "beb5483e-36e1-4688-b7f5-ea07361b26a1";
   static const String CHARACTERISTIC_UUID_RX_LAT =

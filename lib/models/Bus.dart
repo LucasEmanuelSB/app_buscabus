@@ -35,7 +35,7 @@ class Bus {
 
   Map<String, dynamic> toJson() => _$BusToJson(this);
 
-  static Future<List<dynamic>> getList() async {
+  static Future<List<Bus>> getList() async {
     http.Response response = await http.get(Constants.url_buses);
 
     try {

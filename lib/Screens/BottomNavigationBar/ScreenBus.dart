@@ -721,7 +721,7 @@ class _ScreenBusState extends State<ScreenBus> {
                               padding: EdgeInsets.fromLTRB(2, 0, 2, 0),
 
                               badgeColor: Constants.white_grey,
-                              borderRadius: 16,
+                              borderRadius: BorderRadius.all(Radius.circular(16)),
                               badgeContent: Text(
                                 "15:05",
                                 style: TextStyle(
