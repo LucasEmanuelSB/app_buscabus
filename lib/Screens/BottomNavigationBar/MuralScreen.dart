@@ -186,13 +186,10 @@ class _MuralScreenState extends State<MuralScreen> {
               stream: widget.blocFilter.output,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  setState(() {
-                    widget.isSelectedLines = snapshot.data[0];
-                    widget.isSelectedRoutes = snapshot.data[1];
-                    widget.isSelectedTerminals = snapshot.data[2];
-                    widget.isSelectedBusStops = snapshot.data[3];
-                  });
-
+                  widget.isSelectedLines = snapshot.data[0];
+                  widget.isSelectedRoutes = snapshot.data[1];
+                  widget.isSelectedTerminals = snapshot.data[2];
+                  widget.isSelectedBusStops = snapshot.data[3];
                   return AppBar(
                     backgroundColor: Constants.white_grey,
                     actions: [
@@ -319,123 +316,26 @@ class _MuralScreenState extends State<MuralScreen> {
               child: Container(
                 child: Padding(
                   padding: const EdgeInsets.all(6.0),
-                  child: ListView.builder(
-                    itemCount: _getList().length,
-                    scrollDirection: Axis.vertical,
-                    itemBuilder: (context, index) {
-                      List<dynamic> lists = _getList();
-                      dynamic element = lists[index];
-                      return element is Bus
-                          ? Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Container(
-                                //margin: EdgeInsets.all(bottom: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(18)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.grey.withOpacity(0.5),
-                                      spreadRadius: 5,
-                                      blurRadius: 7,
-                                      offset: Offset(
-                                          0, 3), // changes position of shadow
-                                    ),
-                                  ],
-                                ),
-                                child: ListTile(
-                                  onTap: () => _busSelected(element),
-                                  leading: Badge(
-                                    padding: element.line < 10
-                                        ? EdgeInsets.symmetric(
-                                            vertical: 10, horizontal: 10)
-                                        : element.id > 9 && element.id < 99
-                                            ? EdgeInsets.symmetric(
-                                                vertical: 6, horizontal: 6)
-                                            : EdgeInsets.symmetric(
-                                                vertical: 5, horizontal: 5),
-                                    badgeContent: Text(
-                                      element.line.toString(),
-                                      style: TextStyle(
-                                          color: Constants.white_grey),
-                                    ),
-                                    badgeColor: Constants.green,
-                                  ),
-                                  trailing: Padding(
-                                    padding: const EdgeInsets.only(
-                                        top: 4.0, left: 4.0),
-                                    child: Icon(
-                                      MdiIcons.circle,
-                                      size: 12,
-                                      color: element.isAvailable
-                                          ? Constants.green
-                                          : Constants.accent_scarlat,
-                                    ),
-                                  ),
-                                  title: RichText(
-                                      text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontFamily: 'Abel',
-                                          ),
-                                          children: [
-                                        TextSpan(
-                                            text: element.itinerary.route.start
-                                                .adress.neighborhood,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Constants.accent_blue,
-                                            )),
-                                        TextSpan(
-                                            text: ' : ',
-                                            style: TextStyle(
-                                              color: Constants.accent_blue,
-                                            )),
-                                        TextSpan(
-                                            text: element.itinerary.route.start
-                                                .adress.street,
-                                            style: TextStyle(
-                                              color: Constants.accent_blue,
-                                            ))
-                                      ])),
-                                  subtitle: RichText(
-                                      text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontFamily: 'Abel',
-                                          ),
-                                          children: [
-                                        TextSpan(
-                                            text: element.itinerary.route.end
-                                                .adress.neighborhood,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Constants.accent_blue,
-                                            )),
-                                        TextSpan(
-                                            text: ' : ',
-                                            style: TextStyle(
-                                              color: Constants.accent_blue,
-                                            )),
-                                        TextSpan(
-                                            text: element.itinerary.route.end
-                                                .adress.street,
-                                            style: TextStyle(
-                                              color: Constants.accent_blue,
-                                            ))
-                                      ])),
-                                ),
-                              ),
-                            )
-                          : element is Routes
-                              ? Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: GestureDetector(
-                                    onTap: () => {}
-                                    /* _routeSelected(element) */,
+                  child: StreamBuilder<List<bool>>(
+                      initialData: filterchips,
+                      stream: widget.blocFilter.output,
+                      builder: (context, snapshot) {
+                        widget.isSelectedLines = snapshot.data[0];
+                        widget.isSelectedRoutes = snapshot.data[1];
+                        widget.isSelectedTerminals = snapshot.data[2];
+                        widget.isSelectedBusStops = snapshot.data[3];
+
+                        return ListView.builder(
+                          itemCount: _getList().length,
+                          scrollDirection: Axis.vertical,
+                          itemBuilder: (context, index) {
+                            List<dynamic> lists = _getList();
+                            dynamic element = lists[index];
+                            return element is Bus
+                                ? Padding(
+                                    padding: const EdgeInsets.all(8.0),
                                     child: Container(
-                                      //margin: EdgeInsets.only(bottom: 8),
+                                      //margin: EdgeInsets.all(bottom: 8),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         borderRadius: BorderRadius.all(
@@ -450,92 +350,225 @@ class _MuralScreenState extends State<MuralScreen> {
                                           ),
                                         ],
                                       ),
-                                      child: Container(
-                                        child: Padding(
-                                          padding: const EdgeInsets.fromLTRB(
-                                              16, 12, 16, 12),
-                                          child: Row(
-                                            children: [
-                                              Align(
-                                                  alignment:
-                                                      Alignment.centerLeft,
-                                                  child: _leading(element)),
-                                              Expanded(
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.fromLTRB(
-                                                          32, 0, 0, 0),
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      _subtitle(element),
-                                                      SizedBox(
-                                                        height: 10,
-                                                      ),
-                                                      _lines(element),
-                                                    ],
-                                                  ),
+                                      child: ListTile(
+                                        onTap: () => _busSelected(element),
+                                        leading: Badge(
+                                          padding: element.line < 10
+                                              ? EdgeInsets.symmetric(
+                                                  vertical: 10, horizontal: 10)
+                                              : element.id > 9 &&
+                                                      element.id < 99
+                                                  ? EdgeInsets.symmetric(
+                                                      vertical: 6,
+                                                      horizontal: 6)
+                                                  : EdgeInsets.symmetric(
+                                                      vertical: 5,
+                                                      horizontal: 5),
+                                          badgeContent: Text(
+                                            element.line.toString(),
+                                            style: TextStyle(
+                                                color: Constants.white_grey),
+                                          ),
+                                          badgeColor: Constants.green,
+                                        ),
+                                        trailing: Padding(
+                                          padding: const EdgeInsets.only(
+                                              top: 4.0, left: 4.0),
+                                          child: Icon(
+                                            MdiIcons.circle,
+                                            size: 12,
+                                            color: element.isAvailable
+                                                ? Constants.green
+                                                : Constants.accent_scarlat,
+                                          ),
+                                        ),
+                                        title: RichText(
+                                            text: TextSpan(
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontFamily: 'Abel',
                                                 ),
+                                                children: [
+                                              TextSpan(
+                                                  text: element
+                                                      .itinerary
+                                                      .route
+                                                      .start
+                                                      .adress
+                                                      .neighborhood,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color:
+                                                        Constants.accent_blue,
+                                                  )),
+                                              TextSpan(
+                                                  text: ' : ',
+                                                  style: TextStyle(
+                                                    color:
+                                                        Constants.accent_blue,
+                                                  )),
+                                              TextSpan(
+                                                  text: element.itinerary.route
+                                                      .start.adress.street,
+                                                  style: TextStyle(
+                                                    color:
+                                                        Constants.accent_blue,
+                                                  ))
+                                            ])),
+                                        subtitle: RichText(
+                                            text: TextSpan(
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontFamily: 'Abel',
+                                                ),
+                                                children: [
+                                              TextSpan(
+                                                  text: element.itinerary.route
+                                                      .end.adress.neighborhood,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color:
+                                                        Constants.accent_blue,
+                                                  )),
+                                              TextSpan(
+                                                  text: ' : ',
+                                                  style: TextStyle(
+                                                    color:
+                                                        Constants.accent_blue,
+                                                  )),
+                                              TextSpan(
+                                                  text: element.itinerary.route
+                                                      .end.adress.street,
+                                                  style: TextStyle(
+                                                    color:
+                                                        Constants.accent_blue,
+                                                  ))
+                                            ])),
+                                      ),
+                                    ),
+                                  )
+                                : element is Routes
+                                    ? Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: GestureDetector(
+                                          onTap: () => {}
+                                          /* _routeSelected(element) */,
+                                          child: Container(
+                                            //margin: EdgeInsets.only(bottom: 8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.all(
+                                                  Radius.circular(18)),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.grey
+                                                      .withOpacity(0.5),
+                                                  spreadRadius: 5,
+                                                  blurRadius: 7,
+                                                  offset: Offset(0,
+                                                      3), // changes position of shadow
+                                                ),
+                                              ],
+                                            ),
+                                            child: Container(
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.fromLTRB(
+                                                        16, 12, 16, 12),
+                                                child: Row(
+                                                  children: [
+                                                    Align(
+                                                        alignment: Alignment
+                                                            .centerLeft,
+                                                        child:
+                                                            _leading(element)),
+                                                    Expanded(
+                                                      child: Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                    .fromLTRB(
+                                                                32, 0, 0, 0),
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            _subtitle(element),
+                                                            SizedBox(
+                                                              height: 10,
+                                                            ),
+                                                            _lines(element),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Container(
+                                          //margin: EdgeInsets.only(bottom: 8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(18)),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.grey
+                                                    .withOpacity(0.5),
+                                                spreadRadius: 5,
+                                                blurRadius: 7,
+                                                offset: Offset(0,
+                                                    3), // changes position of shadow
                                               ),
                                             ],
                                           ),
+                                          child: ListTile(
+                                            isThreeLine: false,
+                                            onTap: () =>
+                                                _busStopSelected(element),
+                                            leading: Badge(
+                                              padding: element.id < 10
+                                                  ? EdgeInsets.symmetric(
+                                                      vertical: 10,
+                                                      horizontal: 10)
+                                                  : EdgeInsets.symmetric(
+                                                      vertical: 6,
+                                                      horizontal: 6),
+                                              badgeColor: element.isTerminal
+                                                  ? Constants.accent_blue
+                                                  : Constants.brightness_blue,
+                                              badgeContent: Text(
+                                                  element.id.toString(),
+                                                  style: TextStyle(
+                                                      color: Constants
+                                                          .white_grey)),
+                                            ),
+                                            title: Text(
+                                                element.adress == null
+                                                    ? 'Indisponível'
+                                                    : element
+                                                        .adress.neighborhood,
+                                                style: TextStyle(
+                                                    color:
+                                                        Constants.accent_blue,
+                                                    fontWeight:
+                                                        FontWeight.bold)),
+                                            subtitle: Text(
+                                                element.adress == null
+                                                    ? 'Indisponível'
+                                                    : element.adress.street),
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Container(
-                                    //margin: EdgeInsets.only(bottom: 8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius:
-                                          BorderRadius.all(Radius.circular(18)),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.grey.withOpacity(0.5),
-                                          spreadRadius: 5,
-                                          blurRadius: 7,
-                                          offset: Offset(0,
-                                              3), // changes position of shadow
-                                        ),
-                                      ],
-                                    ),
-                                    child: ListTile(
-                                      isThreeLine: false,
-                                      onTap: () => _busStopSelected(element),
-                                      leading: Badge(
-                                        padding: element.id < 10
-                                            ? EdgeInsets.symmetric(
-                                                vertical: 10, horizontal: 10)
-                                            : EdgeInsets.symmetric(
-                                                vertical: 6, horizontal: 6),
-                                        badgeColor: element.isTerminal
-                                            ? Constants.accent_blue
-                                            : Constants.brightness_blue,
-                                        badgeContent: Text(
-                                            element.id.toString(),
-                                            style: TextStyle(
-                                                color: Constants.white_grey)),
-                                      ),
-                                      title: Text(
-                                          element.adress == null
-                                              ? 'Indisponível'
-                                              : element.adress.neighborhood,
-                                          style: TextStyle(
-                                              color: Constants.accent_blue,
-                                              fontWeight: FontWeight.bold)),
-                                      subtitle: Text(element.adress == null
-                                          ? 'Indisponível'
-                                          : element.adress.street),
-                                    ),
-                                  ),
-                                );
-                    },
-                  ),
+                                      );
+                          },
+                        );
+                      }),
                 ),
               ),
             )

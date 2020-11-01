@@ -54,9 +54,8 @@ class ScreenMap extends StatefulWidget {
   final Set<Marker> _busStopsMarkers = {};
   final Set<Marker> _busesMarkers = {};
   final Set<Marker> _terminalsMarkers = {};
-  Set<Polyline> _polylines = {};
-  List<LatLng> polylineCoordinates = [];
-  PolylinePoints polylinePoints = new PolylinePoints();
+  final Set<Polyline> _polylines = {};
+  final List<List<LatLng>> polylineCoordinates = new List<List<LatLng>>();
 
   final List<BitmapDescriptor> myIconsBusStops = new List<BitmapDescriptor>();
   final List<BitmapDescriptor> myIconsBusTerminals =
@@ -80,6 +79,7 @@ class _ScreenMapState extends State<ScreenMap> {
     super.initState();
     _defineMapStyle(); //define o estilo do mapa
     _loadBitmapDescriptors(); // carrega assets dos markers
+
     // carrega listner para posicao do usuario no mapa
   }
 
@@ -126,62 +126,74 @@ class _ScreenMapState extends State<ScreenMap> {
     });
   }
 
-  _addPolylinesRoutes() {
-    widget.listRoutes.forEach((element) async {
-      List<PointLatLng> polylinePoints = new List<PointLatLng>();
-      PolylineResult resultStart = await widget.polylinePoints
-          ?.getRouteBetweenCoordinates(
+  _searchPolylinesRoute() async {
+    PolylinePoints polylinePointsStart = new PolylinePoints();
+    PolylinePoints polylinePointsPath = new PolylinePoints();
+    PolylinePoints polylinePointsEnd = new PolylinePoints();
+
+    List<PointLatLng> listpolylinePoints = new List<PointLatLng>();
+
+    for (int i = 0; i < widget.listRoutes.length; i++) {
+      PolylineResult resultStart =
+          await polylinePointsStart?.getRouteBetweenCoordinates(
               Constants.googleAPIKey,
-              PointLatLng(element.start.latitude, element.start.longitude),
-              PointLatLng(
-                  element.busStops[0].latitude, element.busStops[0].longitude));
-      polylinePoints = resultStart.points;
+              PointLatLng(widget.listRoutes[i].start.latitude,
+                  widget.listRoutes[i].start.longitude),
+              PointLatLng(widget.listRoutes[i].busStops[0].latitude,
+                  widget.listRoutes[i].busStops[0].longitude));
+
+      listpolylinePoints = resultStart.points;
 
       PolylineResult resultPath;
-      for (int i = 0; i < element.busStops.length - 1; i++) {
-        resultPath = await widget.polylinePoints?.getRouteBetweenCoordinates(
+      for (int j = 0; j < widget.listRoutes[i].busStops.length - 1; j++) {
+        resultPath = await polylinePointsPath?.getRouteBetweenCoordinates(
             Constants.googleAPIKey,
-            PointLatLng(
-                element.busStops[i].latitude, element.busStops[i].longitude),
-            PointLatLng(element.busStops[i + 1].latitude,
-                element.busStops[i + 1].longitude));
-        polylinePoints =
-            [polylinePoints, resultPath.points].expand((x) => x).toList();
+            PointLatLng(widget.listRoutes[i].busStops[j].latitude,
+                widget.listRoutes[i].busStops[j].longitude),
+            PointLatLng(widget.listRoutes[i].busStops[j + 1].latitude,
+                widget.listRoutes[i].busStops[j + 1].longitude));
+        listpolylinePoints =
+            [listpolylinePoints, resultPath.points].expand((x) => x).toList();
       }
 
-      PolylineResult resultEnd = await widget.polylinePoints
-          ?.getRouteBetweenCoordinates(
+      PolylineResult resultEnd =
+          await polylinePointsEnd?.getRouteBetweenCoordinates(
               Constants.googleAPIKey,
               PointLatLng(
-                  element.busStops[element.busStops.length - 1].latitude,
-                  element.busStops[element.busStops.length - 1].longitude),
-              PointLatLng(element.end.latitude, element.end.longitude));
+                  widget
+                      .listRoutes[i]
+                      .busStops[widget.listRoutes[i].busStops.length - 1]
+                      .latitude,
+                  widget
+                      .listRoutes[i]
+                      .busStops[widget.listRoutes[i].busStops.length - 1]
+                      .longitude),
+              PointLatLng(widget.listRoutes[i].end.latitude,
+                  widget.listRoutes[i].end.longitude));
 
-      polylinePoints =
-          [polylinePoints, resultEnd.points].expand((x) => x).toList();
+      listpolylinePoints =
+          [listpolylinePoints, resultEnd.points].expand((x) => x).toList();
 
-      if (polylinePoints.isNotEmpty) {
-        // loop through all PointLatLng points and convert them
-        // to a list of LatLng, required by the Polyline
-        polylinePoints.forEach((PointLatLng point) {
-          widget.polylineCoordinates
-              .add(LatLng(point.latitude, point.longitude));
+      if (listpolylinePoints.isNotEmpty) {
+        List<LatLng> polylineCoordinates = new List<LatLng>();
+        listpolylinePoints.forEach((PointLatLng point) {
+          polylineCoordinates.add(LatLng(point.latitude, point.longitude));
         });
-      }
-      setState(() {
-        // create a Polyline instance
-        // with an id, an RGB color and the list of LatLng pairs
-        Polyline polyline = Polyline(
-            polylineId: PolylineId("Route " + element.id.toString()),
-            color: Constants.accent_grey,
-            points: widget.polylineCoordinates);
 
-        // add the constructed polyline as a set of points
-        // to the polyline set, which will eventually
-        // end up showing up on the map
-        widget._polylines.add(polyline);
-      });
-    });
+        widget.polylineCoordinates.add(polylineCoordinates);
+      }
+    }
+  }
+
+  _addPolylinesRoutes() {
+    for (int i = 0; i < widget.listRoutes.length; i++) {
+      Polyline polyline = Polyline(
+          polylineId: PolylineId("Route " + widget.listRoutes[i].id.toString()),
+          color: Constants.accent_grey,
+          points: widget.polylineCoordinates[i]);
+
+      widget._polylines.add(polyline);
+    }
   }
 
   _addMarkerTerminals() {
@@ -248,6 +260,79 @@ class _ScreenMapState extends State<ScreenMap> {
     _addMarkerTerminals();
   }
 
+  _updateMarkersBus(bool selected) {
+    //setState(() {
+    widget.isSelectedLines = selected;
+    widget.blocFilter.changeChips(0, widget.isSelectedLines);
+    if (widget.isSelectedLines) {
+      widget._allMarkers =
+          [widget._allMarkers, widget._busesMarkers].expand((x) => x).toSet();
+    } else {
+      List<Marker> toRemove = [];
+      widget._allMarkers.forEach((element) {
+        if (element.markerId.value.split(' ').toList().elementAt(0) == 'Bus') {
+          toRemove.add(element);
+        }
+      });
+      widget._allMarkers.removeWhere((element) => toRemove.contains(element));
+    }
+    //});
+  }
+
+  _updatePolylinesRoutes(bool selected) {
+    //setState(() {
+    widget.isSelectedRoutes = selected;
+    widget.blocFilter.changeChips(1, widget.isSelectedRoutes);
+    if (widget.isSelectedRoutes) {
+      _addPolylinesRoutes();
+    } else {
+      widget._polylines.clear();
+    }
+    //});
+  }
+
+  _updateMarkersBusStop(bool selected) {
+    //setState(() {
+    widget.isSelectedBusStops = selected;
+    widget.blocFilter.changeChips(3, widget.isSelectedBusStops);
+    if (widget.isSelectedBusStops) {
+      widget._allMarkers = [widget._allMarkers, widget._busStopsMarkers]
+          .expand((x) => x)
+          .toSet();
+    } else {
+      List<Marker> toRemove = [];
+      widget._allMarkers.forEach((element) {
+        if (element.markerId.value.split(' ').toList().elementAt(0) ==
+            'BusStop') {
+          toRemove.add(element);
+        }
+      });
+      widget._allMarkers.removeWhere((element) => toRemove.contains(element));
+    }
+    //});
+  }
+
+  _updateMarkersTerminals(bool selected) {
+    //setState(() {
+    widget.isSelectedTerminals = selected;
+    widget.blocFilter.changeChips(2, widget.isSelectedTerminals);
+    if (widget.isSelectedTerminals) {
+      widget._allMarkers = [widget._allMarkers, widget._terminalsMarkers]
+          .expand((x) => x)
+          .toSet();
+    } else {
+      List<Marker> toRemove = [];
+      widget._allMarkers.forEach((element) {
+        if (element.markerId.value.split(' ').toList().elementAt(0) ==
+            'Terminal') {
+          toRemove.add(element);
+        }
+      });
+      widget._allMarkers.removeWhere((element) => toRemove.contains(element));
+    }
+    //});
+  }
+
   _updateBusLocation() async {
     await widget.busWithGps.updateCurrentPosition();
     var markerPosition = LatLng(widget.busWithGps.currentPosition.latitude,
@@ -267,10 +352,11 @@ class _ScreenMapState extends State<ScreenMap> {
         "Longitude: " + widget.busWithGps.currentPosition.longitude.toString());
   }
 
-  _onMapCreated(GoogleMapController controller) {
+  _onMapCreated(GoogleMapController controller) async {
     controller.setMapStyle(mapStyle);
     controllerMap.complete(controller); // definindo o controller do mapa
     _loadMarkers(); // carrega os markers
+    await _searchPolylinesRoute();
     /*   timer = Timer.periodic(
         Duration(seconds: 2), (Timer t) async => await _updateBusLocation()); */
   }
@@ -286,12 +372,10 @@ class _ScreenMapState extends State<ScreenMap> {
               stream: widget.blocFilter.output,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  setState(() {
-                    widget.isSelectedLines = snapshot.data[0];
-                    widget.isSelectedRoutes = snapshot.data[1];
-                    widget.isSelectedTerminals = snapshot.data[2];
-                    widget.isSelectedBusStops = snapshot.data[3];
-                  });
+                  widget.isSelectedLines = snapshot.data[0];
+                  widget.isSelectedRoutes = snapshot.data[1];
+                  widget.isSelectedTerminals = snapshot.data[2];
+                  widget.isSelectedBusStops = snapshot.data[3];
                   return AppBar(
                     backgroundColor: Constants.white_grey,
                     actions: [
@@ -302,35 +386,8 @@ class _ScreenMapState extends State<ScreenMap> {
                             backgroundColor: Constants.white_grey,
                             showCheckmark: false,
                             label: Text('ÔNIBUS'),
-                            onSelected: (bool selected) async {
-                              if (this.mounted) {
-                                setState(() {
-                                  widget.isSelectedLines =
-                                      !widget.isSelectedLines;
-                                  widget.blocFilter
-                                      .changeChips(0, widget.isSelectedLines);
-                                  if (widget.isSelectedLines) {
-                                    widget._allMarkers = [
-                                      widget._allMarkers,
-                                      widget._busesMarkers
-                                    ].expand((x) => x).toSet();
-                                  } else {
-                                    List<Marker> toRemove = [];
-                                    widget._allMarkers.forEach((element) {
-                                      if (element.markerId.value
-                                              .split(' ')
-                                              .toList()
-                                              .elementAt(0) ==
-                                          'Bus') {
-                                        toRemove.add(element);
-                                      }
-                                    });
-                                    widget._allMarkers.removeWhere((element) =>
-                                        toRemove.contains(element));
-                                  }
-                                });
-                              }
-                            },
+                            onSelected: (bool selected) =>
+                                _updateMarkersBus(selected),
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
@@ -348,21 +405,8 @@ class _ScreenMapState extends State<ScreenMap> {
                             backgroundColor: Constants.white_grey,
                             showCheckmark: false,
                             label: Text('ROTAS'),
-                            onSelected: (bool selected) async {
-                              if (this.mounted) {
-                                setState(() {
-                                  widget.isSelectedRoutes =
-                                      !widget.isSelectedRoutes;
-                                  widget.blocFilter
-                                      .changeChips(1, widget.isSelectedRoutes);
-                                  if (widget.isSelectedRoutes) {
-                                    _addPolylinesRoutes();
-                                  } else {
-                                    widget._polylines.clear();
-                                  }
-                                });
-                              }
-                            },
+                            onSelected: (bool selected) =>
+                                _updatePolylinesRoutes(selected),
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
@@ -380,35 +424,8 @@ class _ScreenMapState extends State<ScreenMap> {
                             backgroundColor: Constants.white_grey,
                             showCheckmark: false,
                             label: Text('TERMINAIS'),
-                            onSelected: (bool selected) async {
-                              if (this.mounted) {
-                                setState(() {
-                                  widget.isSelectedTerminals =
-                                      !widget.isSelectedTerminals;
-                                  widget.blocFilter.changeChips(
-                                      2, widget.isSelectedTerminals);
-                                  if (widget.isSelectedTerminals) {
-                                    widget._allMarkers = [
-                                      widget._allMarkers,
-                                      widget._terminalsMarkers
-                                    ].expand((x) => x).toSet();
-                                  } else {
-                                    List<Marker> toRemove = [];
-                                    widget._allMarkers.forEach((element) {
-                                      if (element.markerId.value
-                                              .split(' ')
-                                              .toList()
-                                              .elementAt(0) ==
-                                          'Terminal') {
-                                        toRemove.add(element);
-                                      }
-                                    });
-                                    widget._allMarkers.removeWhere((element) =>
-                                        toRemove.contains(element));
-                                  }
-                                });
-                              }
-                            },
+                            onSelected: (bool selected) =>
+                                _updateMarkersTerminals(selected),
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
@@ -426,35 +443,8 @@ class _ScreenMapState extends State<ScreenMap> {
                             backgroundColor: Constants.white_grey,
                             showCheckmark: false,
                             label: Text('PONTOS'),
-                            onSelected: (bool selected) async {
-                              if (this.mounted) {
-                                setState(() {
-                                  widget.isSelectedBusStops =
-                                      !widget.isSelectedBusStops;
-                                  widget.blocFilter.changeChips(
-                                      3, widget.isSelectedBusStops);
-                                  if (widget.isSelectedBusStops) {
-                                    widget._allMarkers = [
-                                      widget._allMarkers,
-                                      widget._busStopsMarkers
-                                    ].expand((x) => x).toSet();
-                                  } else {
-                                    List<Marker> toRemove = [];
-                                    widget._allMarkers.forEach((element) {
-                                      if (element.markerId.value
-                                              .split(' ')
-                                              .toList()
-                                              .elementAt(0) ==
-                                          'BusStop') {
-                                        toRemove.add(element);
-                                      }
-                                    });
-                                    widget._allMarkers.removeWhere((element) =>
-                                        toRemove.contains(element));
-                                  }
-                                });
-                              }
-                            },
+                            onSelected: (bool selected) =>
+                                _updateMarkersBusStop(selected),
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
@@ -484,17 +474,29 @@ class _ScreenMapState extends State<ScreenMap> {
                         stream: widget.blocCameraPosition.output,
                         builder: (contextCamera, snapshotCamera) {
                           if (snapshotCamera.hasData) {
-                            return GoogleMap(
-                              mapType: MapType.normal,
-                              initialCameraPosition: snapshotCamera.data,
-                              mapToolbarEnabled: false,
-                              onMapCreated: _onMapCreated,
-                              myLocationEnabled: false,
-                              compassEnabled: false,
-                              zoomControlsEnabled: false,
-                              markers: widget._allMarkers,
-                              polylines: widget._polylines,
-                            );
+                            return StreamBuilder<List<bool>>(
+                                initialData: filterchips,
+                                stream: widget.blocFilter.output,
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData) {
+                                    _updateMarkersBus(snapshot.data[0]);
+                                    _updatePolylinesRoutes(snapshot.data[1]);
+                                    _updateMarkersTerminals(snapshot.data[2]);
+                                    _updateMarkersBusStop(snapshot.data[3]);
+                                    return GoogleMap(
+                                      mapType: MapType.normal,
+                                      initialCameraPosition:
+                                          snapshotCamera.data,
+                                      mapToolbarEnabled: false,
+                                      onMapCreated: _onMapCreated,
+                                      myLocationEnabled: false,
+                                      compassEnabled: false,
+                                      zoomControlsEnabled: false,
+                                      markers: widget._allMarkers,
+                                      polylines: widget._polylines,
+                                    );
+                                  }
+                                });
                           } else {
                             return Center(
                               child: CircularProgressIndicator(),
