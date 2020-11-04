@@ -1,4 +1,3 @@
-import 'package:app_buscabus/models/GlobalPosition.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'Adress.g.dart';

@@ -1,5 +1,4 @@
 import 'package:json_annotation/json_annotation.dart';
-import 'package:date_format/date_format.dart';
 
 part 'Calendar.g.dart';
 

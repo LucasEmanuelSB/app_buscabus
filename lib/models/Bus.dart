@@ -19,7 +19,7 @@ class Bus {
   BusDriver busDriver;
   Itinerary itinerary;
   GlobalPosition currentPosition;
-
+  
   Bus(
       {this.id,
       this.line,

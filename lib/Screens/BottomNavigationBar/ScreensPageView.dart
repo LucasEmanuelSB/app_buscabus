@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
 
 import 'package:app_buscabus/Constants.dart';
 import 'package:app_buscabus/Screens/BottomNavigationBar/MuralScreen.dart';
@@ -101,6 +103,20 @@ class RouteBloc {
   void dispose() => _controller?.close();
 }
 
+class CoordinatesBloc {
+  final BehaviorSubject<Map<int,List<LatLng>>> _controller =
+      BehaviorSubject<Map<int,List<LatLng>>>();
+  Sink<Map<int,List<LatLng>>> get input => _controller.sink;
+  Stream<Map<int,List<LatLng>>> get output => _controller.stream;
+  Map<int,List<LatLng>> get currentDate => _controller.value;
+  void sendCoordinates(Map<int,List<LatLng>> coordinates) async {
+    input.add(coordinates);
+  }
+
+  
+  void dispose() => _controller?.close();
+}
+
 class BusStopBloc {
   final BehaviorSubject<BusStop> _controller = BehaviorSubject<BusStop>();
   Sink<BusStop> get input => _controller.sink;
@@ -120,7 +136,7 @@ class ScreensPageView extends StatefulWidget {
 
 class _ScreensPageViewState extends State<ScreensPageView> {
   _addListenerPersonLocate() {
-    getPositionStream(
+    Geolocator.getPositionStream(
       desiredAccuracy: LocationAccuracy.high,
       distanceFilter: 10,
       /* forceAndroidLocationManager: true */
@@ -149,16 +165,22 @@ class _ScreensPageViewState extends State<ScreensPageView> {
   final FilterBloc blocFilter = new FilterBloc();
   final BusBloc blocBus = new BusBloc();
   final RouteBloc blocRoute = new RouteBloc();
+  final CoordinatesBloc blocCoordinates = new CoordinatesBloc();
   final BusStopBloc blocBusStop = new BusStopBloc();
   final PositionBloc blocPosition = new PositionBloc();
   List<Bus> listBuses = new List<Bus>();
   List<BusStop> listBusStops = new List<BusStop>();
   List<BusStop> listTerminals = new List<BusStop>();
   List<Routes> listRoutes = new List<Routes>();
-
+  final List<BitmapDescriptor> myIconsBusStops = new List<BitmapDescriptor>();
+  final List<BitmapDescriptor> myIconsBusTerminals =
+      new List<BitmapDescriptor>();
+  BitmapDescriptor myIconBus;
+  BitmapDescriptor myIconPerson;
+  String mapStyle;
   final regions = <Region>[];
   StreamSubscription<RangingResult> _streamRanging;
-  StreamSubscription<MonitoringResult> _streamMonitoring;
+  //StreamSubscription<MonitoringResult> _streamMonitoring;
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       new FlutterLocalNotificationsPlugin();
   bool showNotifcation = true;
@@ -191,8 +213,8 @@ class _ScreensPageViewState extends State<ScreensPageView> {
   }
 
   _monitoringBeacon() {
-    _streamMonitoring =
-        flutterBeacon.monitoring(regions).listen((MonitoringResult result) {
+    //_streamMonitoring =
+    flutterBeacon.monitoring(regions).listen((MonitoringResult result) {
       flutterLocalNotificationsPlugin.cancel(0);
       // result contains a region, event type and event state
     });
@@ -270,9 +292,48 @@ class _ScreensPageViewState extends State<ScreensPageView> {
     }
   }
 
+  static Future<Uint8List> getBytesFromAsset(String path, int width) async {
+    ByteData data = await rootBundle.load(path);
+    ui.Codec codec = await ui.instantiateImageCodec(data.buffer.asUint8List(),
+        targetWidth: width);
+    ui.FrameInfo fi = await codec.getNextFrame();
+    return (await fi.image.toByteData(format: ui.ImageByteFormat.png))
+        .buffer
+        .asUint8List();
+  }
+
+  _loadBitmapDescriptors() {
+    for (int i = 1; i < Constants.num_icons; i++) {
+      getBytesFromAsset('assets/markers/busStop' + i.toString() + '.png', 64)
+          .then((onValue) {
+        myIconsBusStops.add(BitmapDescriptor.fromBytes(onValue));
+      });
+
+      getBytesFromAsset('assets/markers/terminal' + i.toString() + '.png', 64)
+          .then((onValue) {
+        myIconsBusTerminals.add(BitmapDescriptor.fromBytes(onValue));
+      });
+    }
+    getBytesFromAsset('assets/markers/bus.png', 64).then((onValue) {
+      myIconBus = BitmapDescriptor.fromBytes(onValue);
+    });
+
+    getBytesFromAsset('assets/markers/person.png', 64).then((onValue) {
+      myIconPerson = BitmapDescriptor.fromBytes(onValue);
+    });
+  }
+
+  _defineMapStyle() {
+    rootBundle.loadString('assets/map_style.txt').then((string) {
+      mapStyle = string;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadBitmapDescriptors();
+    _defineMapStyle();
     _loadLists();
     _configurateNotifications();
     _addListenerPersonLocate();
@@ -334,9 +395,18 @@ class _ScreensPageViewState extends State<ScreensPageView> {
         listRoutes.isEmpty ||
         listBusStops.isEmpty ||
         listTerminals.isEmpty) {
-      return Center(child: CircularProgressIndicator());
+      return Center(
+          child: Scaffold(body: Center(child: CircularProgressIndicator())));
     } else {
-      busScreen = ScreenBus(blocBus: blocBus, blocPosition: blocPosition);
+      busScreen = ScreenBus(
+          blocBus: blocBus,
+          blocPosition: blocPosition,
+          blocCoordinates: blocCoordinates,
+          myIconBus: myIconBus,
+          myIconPerson: myIconPerson,
+          myIconsBusStops: myIconsBusStops,
+          myIconsBusTerminals: myIconsBusTerminals,
+          mapStyle: mapStyle);
       mapScreen = ScreenMap(
           blocNavigation: blocNavigation,
           blocCameraPosition: blocCameraPosition,
@@ -344,11 +414,17 @@ class _ScreensPageViewState extends State<ScreensPageView> {
           blocBus: blocBus,
           blocPosition: blocPosition,
           blocRoute: blocRoute,
+          blocCoordinates: blocCoordinates,
           blocBusStop: blocBusStop,
           listTerminals: listTerminals,
           listBuses: listBuses,
           listBusStops: listBusStops,
-          listRoutes: listRoutes);
+          listRoutes: listRoutes,
+          myIconBus: myIconBus,
+          myIconPerson: myIconPerson,
+          myIconsBusStops: myIconsBusStops,
+          myIconsBusTerminals: myIconsBusTerminals,
+          mapStyle: mapStyle);
       muralScreen = MuralScreen(
           blocBus: blocBus,
           blocNavigation: blocNavigation,
@@ -373,6 +449,10 @@ class _ScreensPageViewState extends State<ScreensPageView> {
                 return mapScreen;
               case Navigation.MURAL:
                 return muralScreen;
+              default:
+                return Center(
+                    child: Scaffold(
+                        body: Center(child: CircularProgressIndicator())));
             }
           },
         ),
@@ -399,17 +479,20 @@ class _ScreensPageViewState extends State<ScreensPageView> {
                     selectedFontSize: 0,
                     items: <BottomNavigationBarItem>[
                       BottomNavigationBarItem(
-                        icon: _buildIcon(MdiIcons.busSide, 'ÔNIBUS', 0),
-                        title: SizedBox.shrink(),
-                      ),
+                          icon: _buildIcon(MdiIcons.busSide, 'ÔNIBUS', 0),
+                          label: 'ÔNIBUS'
+                          //title: SizedBox.shrink(),
+                          ),
                       BottomNavigationBarItem(
-                        icon: _buildIcon(MdiIcons.mapMarker, 'MAPA', 1),
-                        title: SizedBox.shrink(),
-                      ),
+                          icon: _buildIcon(MdiIcons.mapMarker, 'MAPA', 1),
+                          label: 'MAPA'
+                          //title: SizedBox.shrink(),
+                          ),
                       BottomNavigationBarItem(
-                        icon: _buildIcon(MdiIcons.table, 'MURAL', 2),
-                        title: SizedBox.shrink(),
-                      ),
+                          icon: _buildIcon(MdiIcons.table, 'MURAL', 2),
+                          label: 'MURAL'
+                          //title: SizedBox.shrink(),
+                          ),
                     ],
                     currentIndex: currentIndex,
                     selectedItemColor: _selectedItemColor,

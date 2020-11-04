@@ -1,4 +1,3 @@
-import 'package:app_buscabus/models/Bus.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'GlobalPosition.g.dart';

@@ -1,5 +1,4 @@
 import 'package:app_buscabus/models/Adress.dart';
-import 'package:app_buscabus/models/GlobalPosition.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoder/geocoder.dart';
 import 'package:app_buscabus/Constants.dart';

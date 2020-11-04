@@ -5,11 +5,11 @@ import 'package:app_buscabus/models/Itinerary.dart';
 import 'package:app_buscabus/models/Routes.dart';
 import 'package:badges/badges.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:app_buscabus/Screens/BottomNavigationBar/ScreensPageView.dart';
 
+//ignore: must_be_immutable
 class MuralScreen extends StatefulWidget {
   MuralScreen(
       {this.blocNavigation,
