@@ -8,19 +8,19 @@ part of 'Bus.dart';
 
 Bus _$BusFromJson(Map<String, dynamic> json) {
   return Bus(
-      id: json['id']== null  ? null: json['id'] as int,
+      id: json['id'] == null ? null : json['id'] as int,
       line: json['line'] as int,
       isAvailable: json['isAvailable'] as bool,
-      velocity: (json['velocity'] as num)?.toDouble(),
       busDriver: json['busDriver'] == null
           ? null
           : BusDriver.fromJson(json['busDriver'] as Map<String, dynamic>),
       itinerary: json['itinerary'] == null
           ? null
           : Itinerary.fromJson(json['itinerary'] as Map<String, dynamic>),
-      currentPosition: json['currentPosition'] == null
+      realTimeData: json['realTimeData'] == null
           ? null
-          : GlobalPosition.fromJson(json['currentPosition'] as Map<String, dynamic>));
+          : RealTimeData.fromJson(
+              json['realTimeData'] as Map<String, dynamic>));
 }
 
 Map<String, dynamic> _$BusToJson(Bus instance) => <String, dynamic>{
@@ -28,5 +28,5 @@ Map<String, dynamic> _$BusToJson(Bus instance) => <String, dynamic>{
       'isAvailable': instance.isAvailable,
       'busDriver': instance.busDriver?.toJson(),
       'itinerary': instance.itinerary?.toJson(),
-      'currentPosition': instance.currentPosition?.toJson(),
+      'realTimeData': instance.realTimeData?.toJson(),
     };

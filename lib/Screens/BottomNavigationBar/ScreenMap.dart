@@ -212,7 +212,7 @@ class _ScreenMapState extends State<ScreenMap> {
         widget.busWithGps = element;
       }
       if (element.isAvailable) {
-        if (element.currentPosition != null) {
+        if (element.realTimeData != null) {
           widget._busesMarkers.add(new Marker(
               markerId: MarkerId('Bus ' + element.id.toString()),
               infoWindow: InfoWindow(
@@ -224,8 +224,8 @@ class _ScreenMapState extends State<ScreenMap> {
                         .sendCoordinates(widget.polylineCoordinates);
                     widget.blocNavigation.changeNavigationIndex(Navigation.BUS);
                   }),
-              position: LatLng(element.currentPosition.latitude,
-                  element.currentPosition.longitude),
+              position: LatLng(element.realTimeData.latitude,
+                  element.realTimeData.longitude),
               icon: widget.myIconBus /* BitmapDescriptor.defaultMarker */));
         }
       }
@@ -314,9 +314,9 @@ class _ScreenMapState extends State<ScreenMap> {
   }
 
   _updateBusLocation() async {
-    await widget.busWithGps.updateCurrentPosition();
-    var markerPosition = LatLng(widget.busWithGps.currentPosition.latitude,
-        widget.busWithGps.currentPosition.longitude);
+    await widget.busWithGps.updateRealTimeData();
+    var markerPosition = LatLng(widget.busWithGps.realTimeData.latitude,
+        widget.busWithGps.realTimeData.longitude);
     String busMarkerId = 'Bus ' + widget.busWithGps.id.toString();
     Marker busMarker = Marker(
         markerId: MarkerId(busMarkerId),
@@ -327,9 +327,8 @@ class _ScreenMapState extends State<ScreenMap> {
       widget._allMarkers.removeWhere((m) => m.markerId.value == busMarkerId);
       if (widget.isSelectedLines) widget._allMarkers.add(busMarker);
     });
-    print("Latitude: " + widget.busWithGps.currentPosition.latitude.toString());
-    print(
-        "Longitude: " + widget.busWithGps.currentPosition.longitude.toString());
+    print("Latitude: " + widget.busWithGps.realTimeData.latitude.toString());
+    print("Longitude: " + widget.busWithGps.realTimeData.longitude.toString());
   }
 
   _onMapCreated(GoogleMapController controller) async {

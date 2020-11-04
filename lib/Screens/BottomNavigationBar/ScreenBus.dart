@@ -16,6 +16,7 @@ import 'package:flutter/gestures.dart';
 import 'package:badges/badges.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'dart:convert';
+import 'dart:math' as Math;
 
 //ignore: must_be_immutable
 class ScreenBus extends StatefulWidget {
@@ -67,6 +68,8 @@ class _ScreenBusState extends State<ScreenBus> {
   final Set<Polyline> polylines = {};
   List<LatLng> polylineCoordinates = new List<LatLng>();
   List<String> lines = ["100"];
+  Timer timer;
+  String routeETA = "0";
 
   _addPolylinesRoute() async {
     Polyline polyline = Polyline(
@@ -104,13 +107,13 @@ class _ScreenBusState extends State<ScreenBus> {
   }
 
   _addMarkerBus(Bus bus) {
-    if (bus.currentPosition != null) {
+    if (bus.realTimeData != null) {
       allMarkers.removeWhere((element) => element == busMarker);
       busMarker = new Marker(
           markerId: MarkerId('Bus ' + bus.id.toString()),
           infoWindow: InfoWindow(title: "Linha " + bus.line.toString()),
-          position: LatLng(
-              bus.currentPosition.latitude, bus.currentPosition.longitude),
+          position:
+              LatLng(bus.realTimeData.latitude, bus.realTimeData.longitude),
           icon: widget.myIconBus /* BitmapDescriptor.defaultMarker */);
     }
   }
@@ -120,30 +123,101 @@ class _ScreenBusState extends State<ScreenBus> {
     _addMarkerTerminal(bus.itinerary.route.end);
     _addMarkersBusStops(bus.itinerary.route.busStops);
     _addMarkerBus(bus);
-    _addPolylinesRoute();
   }
 
-  _updateBusLocation(Bus bus) async {
-    await bus.updateCurrentPosition();
-    var markerPosition =
-        LatLng(bus.currentPosition.latitude, bus.currentPosition.longitude);
+  double calculateETA(double distance, double velocity) {
+    return (distance / velocity);
+  }
+
+  double distanceOnGeoid(double lat1, double lon1, double lat2, double lon2) {
+    // Convert degrees to radians
+    lat1 = lat1 * Math.pi / 180.0;
+    lon1 = lon1 * Math.pi / 180.0;
+
+    lat2 = lat2 * Math.pi / 180.0;
+    lon2 = lon2 * Math.pi / 180.0;
+
+    // radius of earth in metres
+    double r = 6378100;
+
+    // P
+    double rho1 = r * Math.cos(lat1);
+    double z1 = r * Math.sin(lat1);
+    double x1 = rho1 * Math.cos(lon1);
+    double y1 = rho1 * Math.sin(lon1);
+
+    // Q
+    double rho2 = r * Math.cos(lat2);
+    double z2 = r * Math.sin(lat2);
+    double x2 = rho2 * Math.cos(lon2);
+    double y2 = rho2 * Math.sin(lon2);
+
+    // Dot product
+    double dot = (x1 * x2 + y1 * y2 + z1 * z2);
+    double cosTheta = dot / (r * r);
+
+    double theta = Math.acos(cosTheta);
+
+    // Distance in Metres
+    return r * theta;
+  }
+
+  _updateRealTimeData() {
+    bus.updateRealTimeData();
+    double lat1 = bus.realTimeData.latitude;
+    double lng1 = bus.realTimeData.longitude;
+    var markerPosition = LatLng(lat1, lng1);
     String busMarkerId = 'Bus ' + bus.id.toString();
     Marker busMarker = Marker(
         markerId: MarkerId(busMarkerId),
         position: markerPosition, // updated position
         icon: widget.myIconBus);
 
+    double lat2 = bus.itinerary.route.end.latitude;
+    double lng2 = bus.itinerary.route.end.longitude;
+
+    double distance = distanceOnGeoid(lat1, lng1, lat2, lng2);
+    double eta = calculateETA(distance, bus.realTimeData.velocity);
+
+    int secondsDuration = Duration(seconds: eta.truncate()).inSeconds;
+
+    if (secondsDuration > 3600) {
+      // hours
+      int h = (secondsDuration / 3600).truncate();
+      int m = ((secondsDuration % 3600)/60).truncate();
+      setState(() {
+        routeETA = h.toString() + "h" + m.toString() + "m";
+      });
+    } else if (secondsDuration >= 60 && eta < 3600) {
+      // minutes
+      int m = (secondsDuration / 60).truncate();
+      int s = secondsDuration % 60;
+      setState(() {
+        routeETA = m.toString() + "m" + s.toString() + "s";
+      });
+    } else if (eta < 60) {
+      // seconds
+      setState(() {
+        routeETA = secondsDuration.toString() + "s";
+      });
+    }
+
     setState(() {
       allMarkers.removeWhere((m) => m.markerId.value == busMarkerId);
       allMarkers.add(busMarker);
     });
-    print("Latitude: " + bus.currentPosition.latitude.toString());
-    print("Longitude: " + bus.currentPosition.longitude.toString());
+
+    print("Latitude: " + bus.realTimeData.latitude.toString());
+    print("Longitude: " + bus.realTimeData.longitude.toString());
   }
 
   _onMapCreated(GoogleMapController controller) async {
     controller.setMapStyle(widget.mapStyle);
     controllerMap.complete(controller); // definindo o controller do mapa
+    if (lines.contains(bus.line.toString())) {
+      timer = Timer.periodic(
+          Duration(seconds: 2), (Timer t) async => await _updateRealTimeData());
+    }
   }
 
   @override
@@ -151,6 +225,12 @@ class _ScreenBusState extends State<ScreenBus> {
     super.initState();
 
     _scanBLE();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    timer?.cancel();
   }
 
   _addDeviceTolist(final BluetoothDevice device) {
@@ -195,6 +275,7 @@ class _ScreenBusState extends State<ScreenBus> {
               polylineCoordinates =
                   widget.blocCoordinates.currentDate[bus.itinerary.route.id];
               _updateMarkers();
+              _addPolylinesRoute();
               String nameBusDriver = "";
               String busStopsFromItinerarys = "";
               int startId = 0, endId = 0;
@@ -205,7 +286,6 @@ class _ScreenBusState extends State<ScreenBus> {
               int startBusStopId = -1, endBusStopId = -1;
               String weeks = "";
               String weekendsHolidays = "";
-              int routeLenght;
               String line = bus.line.toString();
               if (bus.busDriver != null) {
                 nameBusDriver = bus.busDriver.name;
@@ -256,22 +336,19 @@ class _ScreenBusState extends State<ScreenBus> {
                 }
                 if (bus.itinerary.route != null) {
                   if (bus.itinerary.route.busStops != null) {
-                    routeLenght = bus.itinerary.route.busStops.length;
                     if (bus.itinerary.route.start.adress.neighborhood != null) {
                       startId = bus.itinerary.route.start.id;
                       startNeighborhood =
                           bus.itinerary.route.start.adress.neighborhood;
                       startStreet = bus.itinerary.route.start.adress.street;
-                      startBusStopId = bus.itinerary.route.busStops[0].id;
+                      startBusStopId = bus.itinerary.route.start.id;
                     }
-                    if (bus.itinerary.route.busStops[routeLenght - 1].adress !=
-                        null) {
+                    if (bus.itinerary.route.end.adress != null) {
                       endId = bus.itinerary.route.end.id;
                       endNeighborhood =
                           bus.itinerary.route.end.adress.neighborhood;
                       endStreet = bus.itinerary.route.end.adress.street;
-                      endBusStopId =
-                          bus.itinerary.route.busStops[routeLenght - 1].id;
+                      endBusStopId = bus.itinerary.route.end.id;
                     }
                     bus.itinerary.route.busStops.forEach((busList) {
                       busStopsFromItinerarys = busStopsFromItinerarys +
@@ -639,7 +716,7 @@ class _ScreenBusState extends State<ScreenBus> {
                         ].toSet(),
                         //markers: widget._allMarkers,
                       ),
-                      Padding(
+/*                       Padding(
                         padding: const EdgeInsets.only(
                             left: 16.0, bottom: 8.0, top: 4.0),
                         child: Row(
@@ -671,7 +748,7 @@ class _ScreenBusState extends State<ScreenBus> {
                             )
                           ],
                         ),
-                      )
+                      ) */
                     ],
                   ),
                 ),
@@ -684,8 +761,8 @@ class _ScreenBusState extends State<ScreenBus> {
               child: FloatingActionButton(
                 backgroundColor: Constants.accent_blue,
                 child: Text(
-                  "15:05",
-                  style: TextStyle(color: Constants.white_grey, fontSize: 12.0),
+                  routeETA,
+                  style: TextStyle(color: Constants.white_grey, fontSize: 8.0),
                 ),
                 onPressed: null,
                 mini: true,

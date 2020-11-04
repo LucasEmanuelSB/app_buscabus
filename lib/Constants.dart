@@ -12,7 +12,7 @@ class Constants {
   static const Color accent_grey = Color(0xff707070);
   static const Color white_grey = Color(0xffEDF2F4);
 
-  static const String url = "http://35.199.104.230/api/";
+  static const String url = "http://34.95.187.30/api/";
   static const String url_buses = url + "buses";
   static const String url_busDrivers = url + "busDrivers";
   static const String url_busStops = url + "busStops";
@@ -21,7 +21,7 @@ class Constants {
   static const String url_routes = url + "routes";
   static const String url_adresses = url + "adresses";
   static const String url_points = url + "points";
-  static const String url_globalPosition = url + "globalPositions";
+  static const String url_realTimeData = url + "realTimeData";
 
   static const String SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
   static const String CHARACTERISTIC_UUID_TX =

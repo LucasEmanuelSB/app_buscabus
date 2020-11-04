@@ -578,8 +578,7 @@ class _MuralScreenState extends State<MuralScreen> {
 
   _busSelected(Bus bus) {
     CameraPosition cameraPosition = CameraPosition(
-        target:
-            LatLng(bus.currentPosition.latitude, bus.currentPosition.longitude),
+        target: LatLng(bus.realTimeData.latitude, bus.realTimeData.longitude),
         zoom: 20);
     widget.blocCameraPosition.sendCameraPosition(cameraPosition);
     widget.blocBus.sendBus(bus);

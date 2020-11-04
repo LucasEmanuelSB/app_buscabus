@@ -5,7 +5,7 @@ import 'dart:async';
 
 import 'package:app_buscabus/models/BusDriver.dart';
 import 'package:app_buscabus/models/Itinerary.dart';
-import 'package:app_buscabus/models/GlobalPosition.dart';
+import 'package:app_buscabus/models/RealTimeData.dart';
 import 'package:json_annotation/json_annotation.dart';
 part 'Bus.g.dart';
 
@@ -14,22 +14,17 @@ class Bus {
   int id;
   int line;
   bool isAvailable;
-  double velocity;
-  double eta;
   BusDriver busDriver;
   Itinerary itinerary;
-  GlobalPosition currentPosition;
-  
+  RealTimeData realTimeData;
+
   Bus(
       {this.id,
       this.line,
       this.isAvailable,
       this.busDriver,
       this.itinerary,
-      this.currentPosition,
-      this.velocity,
-      this.eta
-      });
+      this.realTimeData});
 
   factory Bus.fromJson(Map<String, dynamic> data) => _$BusFromJson(data);
 
@@ -53,12 +48,10 @@ class Bus {
     }
   }
 
-  updateCurrentPosition() async {
-    http.Response response = await http.get(Constants.url_globalPosition +
-        "/" +
-        this.currentPosition.id.toString());
+  updateRealTimeData() async {
+    http.Response response = await http.get(
+        Constants.url_realTimeData + "/" + this.realTimeData.id.toString());
     var dadosJson = json.decode(response.body);
-    this.currentPosition.latitude = dadosJson["latitude"];
-    this.currentPosition.longitude = dadosJson["longitude"];
+    this.realTimeData = RealTimeData.fromJson(dadosJson);
   }
 }

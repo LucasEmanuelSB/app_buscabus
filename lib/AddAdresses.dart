@@ -57,7 +57,7 @@ class _AddAdressesState extends State<AddAdresses> {
     //print(response.id);
     String bodyAdress = jsonEncode(newAdress.toJson());
     try {
-      //print(responseGlobalPosition.body);
+      //print(responseRealTimeData.body);
       http.Response responseAdress = await http.post(Constants.url_adresses,
           headers: headers, body: bodyAdress);
       print(responseAdress.statusCode.toString() + " \n " + bodyAdress + "\n");
