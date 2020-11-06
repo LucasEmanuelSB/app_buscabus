@@ -4,7 +4,8 @@ import 'package:app_buscabus/Constants.dart';
 import 'package:app_buscabus/Screens/BottomNavigationBar/ScreensPageView.dart';
 import 'package:app_buscabus/models/Bus.dart';
 import 'package:app_buscabus/models/BusStop.dart';
-
+import 'package:app_buscabus/models/Routes.dart';
+import 'package:app_buscabus/cameraFunctions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -18,11 +19,9 @@ import 'package:flutter_blue/flutter_blue.dart';
 import 'dart:convert';
 import 'dart:math' as Math;
 
-//ignore: must_be_immutable
 class ScreenBus extends StatefulWidget {
   ScreenBus(
       {this.blocBus,
-      this.notifyStream,
       this.blocPosition,
       this.blocCoordinates,
       this.myIconsBusStops,
@@ -32,44 +31,47 @@ class ScreenBus extends StatefulWidget {
       this.mapStyle});
 
   final BusBloc blocBus;
+  final PositionBloc blocPosition;
   final CoordinatesBloc blocCoordinates;
+
   final List<BitmapDescriptor> myIconsBusStops;
   final List<BitmapDescriptor> myIconsBusTerminals;
   final BitmapDescriptor myIconBus;
   final BitmapDescriptor myIconPerson;
   final String mapStyle;
 
-  StreamSubscription<List<int>> notifyStream;
-  String jsonBLE = "";
-  CameraPosition _cameraPosition =
-      CameraPosition(target: LatLng(-26.89635815, -48.67252082), zoom: 16);
-  Timer timer;
-  PositionBloc blocPosition;
-  final FlutterBlue flutterBlue = FlutterBlue.instance;
-  final List<BluetoothDevice> devicesList = new List<BluetoothDevice>();
-  Position personPositon;
   @override
   _ScreenBusState createState() => _ScreenBusState();
 }
 
 class _ScreenBusState extends State<ScreenBus> {
   Completer<GoogleMapController> controllerMap = new Completer();
+  FlutterBlue flutterBlue = FlutterBlue.instance;
+  List<BluetoothDevice> devicesList = new List<BluetoothDevice>();
+  Set<Marker> busStopsMarkers = {};
+  Set<Marker> terminalsMarkers = {};
+  Set<Marker> allMarkers = new Set<Marker>();
+  Set<Polyline> polylines = {};
+  List<LatLng> polylineCoordinates = new List<LatLng>();
+  CameraPosition cameraPosition = new CameraPosition(target: new LatLng(0, 0));
+  List<String> lines = ["100"];
   String startAdress = "Origem da Linha";
   String endAdress = "Destino da Linha";
-  double rating = 2.0;
   String eta;
-  Bus bus;
-  bool isBusRecognized = true;
+  Bus bus = new Bus();
   bool isBusBluetoothConnected = false;
-  Set<Marker> allMarkers = new Set<Marker>();
   Marker busMarker;
-  final Set<Marker> busStopsMarkers = {};
-  final Set<Marker> terminalsMarkers = {};
-  final Set<Polyline> polylines = {};
-  List<LatLng> polylineCoordinates = new List<LatLng>();
-  List<String> lines = ["100"];
-  Timer timer;
+  Position personPositon;
+  String jsonBLE = "";
+  Timer timerRealTimeData;
+  Timer timerBLE;
   String routeETA = "0";
+  bool isDataBLEOK = false;
+  bool isErrorBLE = false;
+  bool isBusBluetooth = false;
+  BluetoothDevice deviceBus;
+  BluetoothService serviceBus;
+  BusBloc blocBusBLE = new BusBloc();
 
   _addPolylinesRoute() async {
     Polyline polyline = Polyline(
@@ -164,6 +166,13 @@ class _ScreenBusState extends State<ScreenBus> {
 
   _updateRealTimeData() {
     bus.updateRealTimeData();
+    moveCamera(
+        new CameraPosition(
+            target:
+                LatLng(bus.realTimeData.latitude, bus.realTimeData.longitude),
+            zoom: 16,
+            tilt: 60),
+        controllerMap);
     double lat1 = bus.realTimeData.latitude;
     double lng1 = bus.realTimeData.longitude;
     var markerPosition = LatLng(lat1, lng1);
@@ -172,6 +181,11 @@ class _ScreenBusState extends State<ScreenBus> {
         markerId: MarkerId(busMarkerId),
         position: markerPosition, // updated position
         icon: widget.myIconBus);
+
+    setState(() {
+      allMarkers.removeWhere((m) => m.markerId.value == busMarkerId);
+      allMarkers.add(busMarker);
+    });
 
     double lat2 = bus.itinerary.route.end.latitude;
     double lng2 = bus.itinerary.route.end.longitude;
@@ -184,7 +198,7 @@ class _ScreenBusState extends State<ScreenBus> {
     if (secondsDuration > 3600) {
       // hours
       int h = (secondsDuration / 3600).truncate();
-      int m = ((secondsDuration % 3600)/60).truncate();
+      int m = ((secondsDuration % 3600) / 60).truncate();
       setState(() {
         routeETA = h.toString() + "h" + m.toString() + "m";
       });
@@ -202,11 +216,6 @@ class _ScreenBusState extends State<ScreenBus> {
       });
     }
 
-    setState(() {
-      allMarkers.removeWhere((m) => m.markerId.value == busMarkerId);
-      allMarkers.add(busMarker);
-    });
-
     print("Latitude: " + bus.realTimeData.latitude.toString());
     print("Longitude: " + bus.realTimeData.longitude.toString());
   }
@@ -214,8 +223,9 @@ class _ScreenBusState extends State<ScreenBus> {
   _onMapCreated(GoogleMapController controller) async {
     controller.setMapStyle(widget.mapStyle);
     controllerMap.complete(controller); // definindo o controller do mapa
+    _updateRealTimeData();
     if (lines.contains(bus.line.toString())) {
-      timer = Timer.periodic(
+      timerRealTimeData = Timer.periodic(
           Duration(seconds: 2), (Timer t) async => await _updateRealTimeData());
     }
   }
@@ -223,29 +233,31 @@ class _ScreenBusState extends State<ScreenBus> {
   @override
   void initState() {
     super.initState();
-
     _scanBLE();
   }
 
   @override
-  void dispose() {
+  void dispose() async {
     super.dispose();
-    timer?.cancel();
+    await deviceBus.disconnect();
+    blocBusBLE.dispose();
+    timerBLE?.cancel();
+    timerRealTimeData?.cancel();
   }
 
   _addDeviceTolist(final BluetoothDevice device) {
-    if (!widget.devicesList.contains(device)) {
+    if (!devicesList.contains(device)) {
       setState(() {
-        widget.devicesList.add(device);
+        devicesList.add(device);
       });
     }
   }
 
   _scanBLE() {
     // Start scanning
-    widget.flutterBlue.startScan(timeout: Duration(seconds: 4));
+    flutterBlue.startScan(timeout: Duration(seconds: 4));
     print("Scan devices.....");
-    widget.flutterBlue.connectedDevices
+    flutterBlue.connectedDevices
         .asStream()
         .listen((List<BluetoothDevice> devices) {
       for (BluetoothDevice device in devices) {
@@ -253,183 +265,42 @@ class _ScreenBusState extends State<ScreenBus> {
         if (lines.contains(device.name)) _addDeviceTolist(device);
       }
     });
-    widget.flutterBlue.scanResults.listen((List<ScanResult> results) {
+    flutterBlue.scanResults.listen((List<ScanResult> results) {
       for (ScanResult result in results) {
         print("device found: ${result.device.name}");
         if (lines.contains(result.device.name)) _addDeviceTolist(result.device);
       }
     });
     // Stop scanning
-    widget.flutterBlue.stopScan();
+    flutterBlue.stopScan();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(backgroundColor: Constants.white_grey),
-      body: StreamBuilder<Bus>(
-          stream: widget.blocBus.output,
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              bus = snapshot.data;
-              polylineCoordinates =
-                  widget.blocCoordinates.currentDate[bus.itinerary.route.id];
-              _updateMarkers();
-              _addPolylinesRoute();
-              String nameBusDriver = "";
-              String busStopsFromItinerarys = "";
-              int startId = 0, endId = 0;
-              String startNeighborhood = "Bairro Indisponível",
-                  endNeighborhood = "Bairro Indisponível",
-                  startStreet = "Rua Indisponível",
-                  endStreet = "Rua Indisponível";
-              int startBusStopId = -1, endBusStopId = -1;
-              String weeks = "";
-              String weekendsHolidays = "";
-              String line = bus.line.toString();
-              if (bus.busDriver != null) {
-                nameBusDriver = bus.busDriver.name;
-              }
-              if (bus.itinerary != null) {
-                if (bus.itinerary.calendar != null) {
-                  if (bus.itinerary.calendar.weeks != null) {
-                    for (int i = 0;
-                        i < bus.itinerary.calendar.weeks.length;
-                        i++) {
-                      weeks = weeks +
-                          bus.itinerary.calendar.weeks[i]
-                              .split(':')
-                              .toList()
-                              .elementAt(0)
-                              .toString() +
-                          ":" +
-                          bus.itinerary.calendar.weeks[i]
-                              .split(':')
-                              .toList()
-                              .elementAt(1)
-                              .toString();
-                      if (i != bus.itinerary.calendar.weeks.length - 1)
-                        weeks = weeks + ' - ';
-                    }
-                  }
-                  if (bus.itinerary.calendar.weekendsHolidays != null) {
-                    for (int i = 0;
-                        i < bus.itinerary.calendar.weekendsHolidays.length;
-                        i++) {
-                      weekendsHolidays = weekendsHolidays +
-                          bus.itinerary.calendar.weekendsHolidays[i]
-                              .split(':')
-                              .toList()
-                              .elementAt(0)
-                              .toString() +
-                          ":" +
-                          bus.itinerary.calendar.weekendsHolidays[i]
-                              .split(':')
-                              .toList()
-                              .elementAt(1)
-                              .toString();
-                      if (i !=
-                          bus.itinerary.calendar.weekendsHolidays.length - 1)
-                        weekendsHolidays = weekendsHolidays + ' - ';
-                    }
-                  }
-                }
-                if (bus.itinerary.route != null) {
-                  if (bus.itinerary.route.busStops != null) {
-                    if (bus.itinerary.route.start.adress.neighborhood != null) {
-                      startId = bus.itinerary.route.start.id;
-                      startNeighborhood =
-                          bus.itinerary.route.start.adress.neighborhood;
-                      startStreet = bus.itinerary.route.start.adress.street;
-                      startBusStopId = bus.itinerary.route.start.id;
-                    }
-                    if (bus.itinerary.route.end.adress != null) {
-                      endId = bus.itinerary.route.end.id;
-                      endNeighborhood =
-                          bus.itinerary.route.end.adress.neighborhood;
-                      endStreet = bus.itinerary.route.end.adress.street;
-                      endBusStopId = bus.itinerary.route.end.id;
-                    }
-                    bus.itinerary.route.busStops.forEach((busList) {
-                      busStopsFromItinerarys = busStopsFromItinerarys +
-                          busList.id.toString() +
-                          ' - ';
-                    });
-                  }
-                }
-              }
-
-              return SingleChildScrollView(
-                child: Container(
-                  color: Constants.white_grey,
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20.0),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    margin: EdgeInsets.all(18),
-                    elevation: 2,
-                    child: Container(
-                      padding: EdgeInsets.all(32),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          _information(nameBusDriver, line, startNeighborhood,
-                              endNeighborhood, startId, endId),
-                          _map(bus, startBusStopId, endBusStopId, startStreet,
-                              endStreet),
-                          _itinerary(weeks, weekendsHolidays)
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            } else {
-              return Container(
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height,
-                color: Constants.white_grey,
-                child: Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20.0),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  margin: EdgeInsets.all(18),
-                  elevation: 2,
-                  child: Container(
-                    padding: EdgeInsets.all(8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: _noDataAvailable(),
-                    ),
-                  ),
-                ),
-              );
-            }
-          }),
-    );
-  }
-
-  _readNotifyJSON(final BluetoothDevice device,
-      final BluetoothCharacteristic characteristic) {
-    widget.notifyStream = characteristic.value.listen((value) async {
+  _readNotifyJSON(final BluetoothCharacteristic characteristic) {
+    characteristic.value.listen((value) async {
       try {
         String data = latin1.decode(value);
         if (data != 'OK!')
-          widget.jsonBLE = widget.jsonBLE + data;
+          jsonBLE = jsonBLE + data;
         else {
-          //dataJSON_OK = true;
-          widget.notifyStream.cancel();
-          Map<String, dynamic> jsonData = _deserializableData(widget.jsonBLE);
-          Bus bus = Bus.fromJson(jsonData);
-          widget.blocBus.sendBus(bus);
+          //widget.notifyStream.cancel();
+          Map<String, dynamic> jsonData = _deserializableData(jsonBLE);
+          bus = Bus.fromJson(jsonData);
+          setState(() {
+            isBusBluetooth = true;
+          });
+          blocBusBLE.sendBus(bus);
+          isDataBLEOK = true;
+          await deviceBus.disconnect();
+          isBusBluetoothConnected = false;
+          isErrorBLE = false;
         }
       } catch (e) {
-        await device.disconnect();
         print(e);
+        await deviceBus.disconnect();
+        setState(() {
+          isBusBluetoothConnected = false;
+          isErrorBLE = true;
+        });
       }
     });
   }
@@ -440,7 +311,7 @@ class _ScreenBusState extends State<ScreenBus> {
     print("configurateNotifyJSON");
     try {
       print("cheguei aqui-1");
-      List<BluetoothService> services;
+      List<BluetoothService> services = new List<BluetoothService>();
       do {
         services = await device.discoverServices().timeout(
             Duration(milliseconds: 100),
@@ -477,7 +348,9 @@ class _ScreenBusState extends State<ScreenBus> {
     }
   }
 
-  Widget buttomBluetooth(BluetoothDevice device) {
+  Widget buttomBluetooth(final BluetoothDevice device) {
+    deviceBus = device;
+
     return StreamBuilder<Position>(
         stream: widget.blocPosition.output,
         builder: (context, snapshot) {
@@ -512,34 +385,48 @@ class _ScreenBusState extends State<ScreenBus> {
                   isBusBluetoothConnected = !isBusBluetoothConnected;
                 });
                 if (isBusBluetoothConnected) {
-                  await device.connect().timeout(Duration(milliseconds: 600),
-                      onTimeout: () => <BluetoothDevice>[]);
-                  BluetoothService service =
-                      await _discoveryService(device, Constants.SERVICE_UUID);
-                  _reciveJSON(
-                      device,
-                      _discoveryCharacteristc(
-                          service, Constants.CHARACTERISTIC_UUID_TX));
+                  try {
+                    await deviceBus.connect().timeout(
+                        Duration(milliseconds: 600),
+                        onTimeout: () => <BluetoothDevice>[]);
+                    isErrorBLE = false;
+                  } catch (e) {
+                    isErrorBLE = true;
+                    await deviceBus.disconnect();
+                    setState(() {
+                      isBusBluetoothConnected = false;
+                    });
+                    print(e);
+                  }
+                  serviceBus = await _discoveryService(
+                      deviceBus, Constants.SERVICE_UUID);
 
-                  widget.timer = Timer.periodic(
-                      Duration(milliseconds: 2000),
-                      (Timer t) async => snapshot.hasData
-                          ? await _sendCoordinatesBLE(service, snapshot.data)
-                          : null);
+                  isDataBLEOK == false
+                      ? _reciveJSON(_discoveryCharacteristc(
+                          serviceBus, Constants.CHARACTERISTIC_UUID_TX))
+                      : _sendDataBLE(snapshot.data);
                 } else {
-                  widget.timer.cancel();
-                  await device.disconnect();
+                  timerBLE.cancel();
+                  await deviceBus.disconnect();
                 }
               });
         });
   }
 
-  _reciveJSON(BluetoothDevice device, BluetoothCharacteristic characteristic) {
-    characteristic.setNotifyValue(true);
-    _readNotifyJSON(device, characteristic);
+  _sendDataBLE(Position position) async {
+    timerBLE = Timer.periodic(
+        Duration(milliseconds: 2000),
+        (Timer t) async => position != null
+            ? await _sendCoordinatesBLE(serviceBus, position)
+            : null);
   }
 
-  _sendCoordinatesBLE(BluetoothService service, Position position) {
+  _reciveJSON(BluetoothCharacteristic characteristic) {
+    characteristic.setNotifyValue(true);
+    _readNotifyJSON(characteristic);
+  }
+
+  _sendCoordinatesBLE(final BluetoothService service, final Position position) {
     _sendLAT(
         _discoveryCharacteristc(service, Constants.CHARACTERISTIC_UUID_RX_LAT),
         position);
@@ -548,14 +435,24 @@ class _ScreenBusState extends State<ScreenBus> {
         position);
   }
 
-  _sendLAT(BluetoothCharacteristic characteristic, Position position) {
+  _sendLAT(final BluetoothCharacteristic characteristic,
+      final Position position) async {
     List<int> latitude = utf8.encode(position.latitude.toString());
-    characteristic.write(latitude, withoutResponse: true);
+    try {
+      await characteristic.write(latitude, withoutResponse: true);
+    } catch (e) {
+      print(e);
+    }
   }
 
-  _sendLONG(BluetoothCharacteristic characteristic, Position position) {
+  _sendLONG(final BluetoothCharacteristic characteristic,
+      final Position position) async {
     List<int> longitude = utf8.encode(position.longitude.toString());
-    characteristic.write(longitude, withoutResponse: true);
+    try {
+      await characteristic.write(longitude, withoutResponse: true);
+    } catch (e) {
+      print(e);
+    }
   }
 
   List<Widget> _noDataAvailable() {
@@ -565,11 +462,98 @@ class _ScreenBusState extends State<ScreenBus> {
         padding: const EdgeInsets.all(8.0),
         child: Text("Nenhum ônibus foi selecionado"),
       ),
-      widget.devicesList.length > 0
+      devicesList.length > 0
           ? Expanded(child: _buildListViewOfDevices())
           : Text("ou reconhecido"),
     ];
     return list;
+  }
+
+  Widget _items(Routes route) {
+    return Wrap(
+      runSpacing: 4,
+      alignment: WrapAlignment.start,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      direction: Axis.horizontal,
+      children: _generateRouteIcons(route.start, route.end, route.busStops),
+    );
+  }
+
+  List<Widget> _generateRouteIcons(
+      BusStop start, BusStop end, List<BusStop> path) {
+    List<Widget> children = [];
+    for (int i = 0; i < path.length + 2; i++) {
+      BusStop busStop;
+      if (i == 0) {
+        busStop = start;
+      } else if (i == path.length + 1) {
+        busStop = end;
+      } else
+        busStop = path[i - 1];
+      children.add(Padding(
+          padding: const EdgeInsets.all(1.0),
+          child: Badge(
+            alignment: Alignment.center,
+            child: i == 0 || (i == path.length + 1)
+                ? new Badge(
+                    shape: BadgeShape.square,
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                    /* padding: EdgeInsets.all(16), */
+                    badgeContent: Text(busStop.adress.neighborhood,
+                        style: TextStyle(
+                            color: Constants.accent_blue,
+                            fontWeight: FontWeight.bold)),
+                    badgeColor: Constants.white_grey,
+                  )
+                : null,
+            shape: i == 0 || i == (path.length + 1)
+                ? BadgeShape.circle
+                : BadgeShape.circle,
+            padding: busStop.id < 10 ? EdgeInsets.all(6) : EdgeInsets.all(3),
+            badgeContent: Text(
+              i == 0 || i == (path.length + 1)
+                  ? busStop.id.toString()
+                  : busStop.id.toString(),
+              style: TextStyle(
+                  color: Constants.white_grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold),
+            ),
+            badgeColor: busStop.isTerminal
+                ? Constants.accent_blue
+                : Constants.brightness_blue,
+          )));
+      if (i != path.length + 1)
+        children.add(Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: new Icon(
+            MdiIcons.arrowRightThick,
+            color: Constants.accent_grey,
+            size: 15,
+          ),
+        ));
+    }
+    return children;
+  }
+
+  Widget _route(Bus bus) {
+    return Container(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
+            child: Text("ROTA",
+                style: TextStyle(
+                    color: Constants.accent_blue,
+                    fontWeight: FontWeight.normal,
+                    fontSize: 18,
+                    fontFamily: 'Oswald')),
+          ),
+          _items(bus.itinerary.route),
+        ],
+      ),
+    );
   }
 
   Widget _map(Bus bus, int startBusStopId, int endBusStopId, String startStreet,
@@ -700,7 +684,7 @@ class _ScreenBusState extends State<ScreenBus> {
                     children: [
                       GoogleMap(
                         mapType: MapType.normal,
-                        initialCameraPosition: widget._cameraPosition,
+                        initialCameraPosition: cameraPosition,
                         mapToolbarEnabled: false,
                         onMapCreated: _onMapCreated,
                         myLocationEnabled: false,
@@ -714,41 +698,7 @@ class _ScreenBusState extends State<ScreenBus> {
                             () => new EagerGestureRecognizer(),
                           ),
                         ].toSet(),
-                        //markers: widget._allMarkers,
                       ),
-/*                       Padding(
-                        padding: const EdgeInsets.only(
-                            left: 16.0, bottom: 8.0, top: 4.0),
-                        child: Row(
-                          children: [
-                            Text(
-                              "PRÓXIMO PONTO:  ",
-                              style: TextStyle(
-                                  color: Constants.accent_blue,
-                                  fontSize: 8,
-                                  fontFamily: 'Lato',
-                                  fontStyle: FontStyle.normal,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                            Badge(
-                              //labelPadding: EdgeInsets.all(2),
-                              shape: BadgeShape.square,
-                              padding: EdgeInsets.fromLTRB(2, 0, 2, 0),
-
-                              badgeColor: Constants.white_grey,
-                              borderRadius:
-                                  BorderRadius.all(Radius.circular(16)),
-                              badgeContent: Text(
-                                "15:05",
-                                style: TextStyle(
-                                    color: Constants.green,
-                                    fontFamily: 'Oswald',
-                                    fontSize: 10),
-                              ),
-                            )
-                          ],
-                        ),
-                      ) */
                     ],
                   ),
                 ),
@@ -986,15 +936,14 @@ class _ScreenBusState extends State<ScreenBus> {
 
   ListView _buildListViewOfDevices() {
     List<Container> containers = new List<Container>();
-    for (BluetoothDevice device in widget.devicesList) {
+    for (BluetoothDevice device in devicesList) {
       containers.add(
         Container(
           height: 50,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: <Widget>[
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: <Widget>[
                   RichText(
                     text: TextSpan(
@@ -1010,11 +959,17 @@ class _ScreenBusState extends State<ScreenBus> {
                                   : device.name,
                               style: TextStyle(fontWeight: FontWeight.bold)),
                         ]),
-                  )
-                  //Text(device.id.toString()),
+                  ),
+                  buttomBluetooth(device)
                 ],
               ),
-              buttomBluetooth(device)
+              isErrorBLE == true
+                  ? Center(
+                      child: Text("Erro, tente novamente."),
+                    )
+                  : SizedBox(
+                      height: 0,
+                    )
             ],
           ),
         ),
@@ -1026,6 +981,192 @@ class _ScreenBusState extends State<ScreenBus> {
       children: <Widget>[
         ...containers,
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Constants.white_grey,
+      ),
+      body: StreamBuilder<Bus>(
+          stream: isBusBluetooth ? blocBusBLE.output : widget.blocBus.output,
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              if (bus.realTimeData != null) {
+                cameraPosition = CameraPosition(
+                    target: LatLng(
+                        bus.realTimeData.latitude, bus.realTimeData.longitude));
+              }
+              bus = snapshot.data;
+              if (!isBusBluetooth && !isBusBluetoothConnected) {
+                polylineCoordinates =
+                    widget.blocCoordinates.currentDate[bus.itinerary.route.id];
+                _updateMarkers();
+                _addPolylinesRoute();
+              }
+              String nameBusDriver = "";
+              String busStopsFromItinerarys = "";
+              int startId = 0, endId = 0;
+              String startNeighborhood = "Bairro Indisponível",
+                  endNeighborhood = "Bairro Indisponível",
+                  startStreet = "Rua Indisponível",
+                  endStreet = "Rua Indisponível";
+              int startBusStopId = -1, endBusStopId = -1;
+              String weeks = "";
+              String weekendsHolidays = "";
+              String line = bus.line.toString();
+              if (bus.busDriver != null) {
+                nameBusDriver = bus.busDriver.name;
+              }
+              if (bus.itinerary != null) {
+                if (bus.itinerary.calendar != null) {
+                  if (bus.itinerary.calendar.weeks != null) {
+                    for (int i = 0;
+                        i < bus.itinerary.calendar.weeks.length;
+                        i++) {
+                      weeks = weeks +
+                          bus.itinerary.calendar.weeks[i]
+                              .split(':')
+                              .toList()
+                              .elementAt(0)
+                              .toString() +
+                          ":" +
+                          bus.itinerary.calendar.weeks[i]
+                              .split(':')
+                              .toList()
+                              .elementAt(1)
+                              .toString();
+                      if (i != bus.itinerary.calendar.weeks.length - 1)
+                        weeks = weeks + ' - ';
+                    }
+                  }
+                  if (bus.itinerary.calendar.weekendsHolidays != null) {
+                    for (int i = 0;
+                        i < bus.itinerary.calendar.weekendsHolidays.length;
+                        i++) {
+                      weekendsHolidays = weekendsHolidays +
+                          bus.itinerary.calendar.weekendsHolidays[i]
+                              .split(':')
+                              .toList()
+                              .elementAt(0)
+                              .toString() +
+                          ":" +
+                          bus.itinerary.calendar.weekendsHolidays[i]
+                              .split(':')
+                              .toList()
+                              .elementAt(1)
+                              .toString();
+                      if (i !=
+                          bus.itinerary.calendar.weekendsHolidays.length - 1)
+                        weekendsHolidays = weekendsHolidays + ' - ';
+                    }
+                  }
+                }
+                if (bus.itinerary.route != null) {
+                  if (bus.itinerary.route.busStops != null) {
+                    if (bus.itinerary.route.start.adress.neighborhood != null) {
+                      startId = bus.itinerary.route.start.id;
+                      startNeighborhood =
+                          bus.itinerary.route.start.adress.neighborhood;
+                      startStreet = bus.itinerary.route.start.adress.street;
+                      startBusStopId = bus.itinerary.route.start.id;
+                    }
+                    if (bus.itinerary.route.end.adress != null) {
+                      endId = bus.itinerary.route.end.id;
+                      endNeighborhood =
+                          bus.itinerary.route.end.adress.neighborhood;
+                      endStreet = bus.itinerary.route.end.adress.street;
+                      endBusStopId = bus.itinerary.route.end.id;
+                    }
+                    bus.itinerary.route.busStops.forEach((busList) {
+                      busStopsFromItinerarys = busStopsFromItinerarys +
+                          busList.id.toString() +
+                          ' - ';
+                    });
+                  }
+                }
+              }
+
+              return Container(
+                color: Constants.white_grey,
+                height: double.infinity,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        margin: EdgeInsets.all(18),
+                        elevation: 2,
+                        child: Container(
+                          padding: EdgeInsets.all(32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              _information(
+                                  nameBusDriver,
+                                  line,
+                                  startNeighborhood,
+                                  endNeighborhood,
+                                  startId,
+                                  endId),
+                              isBusBluetooth == false
+                                  ? _map(bus, startBusStopId, endBusStopId,
+                                      startStreet, endStreet)
+                                  : _route(bus),
+                              _itinerary(weeks, weekendsHolidays)
+                            ],
+                          ),
+                        ),
+                      ),
+                      isBusBluetooth == false
+                          ? SizedBox(
+                              height: 0,
+                            )
+                          : buttomBluetooth(deviceBus),
+                      isBusBluetooth == false
+                          ? SizedBox(
+                              height: 0,
+                            )
+                          : Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Center(
+                                  child: Text(
+                                      "Conecte-se novamente e envie suas coordenadas para este ônibus")),
+                            )
+                    ],
+                  ),
+                ),
+              );
+            } else {
+              return Container(
+                width: MediaQuery.of(context).size.width,
+                height: MediaQuery.of(context).size.height,
+                color: Constants.white_grey,
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  margin: EdgeInsets.all(18),
+                  elevation: 2,
+                  child: Container(
+                    padding: EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: _noDataAvailable(),
+                    ),
+                  ),
+                ),
+              );
+            }
+          }),
     );
   }
 }

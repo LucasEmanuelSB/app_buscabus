@@ -248,9 +248,12 @@ class _ScreenMapState extends State<ScreenMap> {
     _addMarkerTerminals();
   }
 
-  _updateMarkersBus(bool selected) {
+  _updateFilterBus(bool selected) {
     widget.isSelectedLines = selected;
     widget.blocFilter.changeChips(0, widget.isSelectedLines);
+  }
+
+  _updateMarkersBus() {
     if (widget.isSelectedLines) {
       widget._allMarkers =
           [widget._allMarkers, widget._busesMarkers].expand((x) => x).toSet();
@@ -265,9 +268,7 @@ class _ScreenMapState extends State<ScreenMap> {
     }
   }
 
-  _updatePolylinesRoutes(bool selected) {
-    widget.isSelectedRoutes = selected;
-    widget.blocFilter.changeChips(1, widget.isSelectedRoutes);
+  _updatePolylinesRoutes() {
     if (widget.isSelectedRoutes) {
       _addPolylinesRoutes();
     } else {
@@ -275,9 +276,17 @@ class _ScreenMapState extends State<ScreenMap> {
     }
   }
 
-  _updateMarkersBusStop(bool selected) {
+  _updateFilterRoutes(bool selected) {
+    widget.isSelectedRoutes = selected;
+    widget.blocFilter.changeChips(1, widget.isSelectedRoutes);
+  }
+
+  _updateFilterBusStop(bool selected) {
     widget.isSelectedBusStops = selected;
     widget.blocFilter.changeChips(3, widget.isSelectedBusStops);
+  }
+
+  _updateMarkersBusStop() {
     if (widget.isSelectedBusStops) {
       widget._allMarkers = [widget._allMarkers, widget._busStopsMarkers]
           .expand((x) => x)
@@ -294,9 +303,12 @@ class _ScreenMapState extends State<ScreenMap> {
     }
   }
 
-  _updateMarkersTerminals(bool selected) {
+  _updateFilterTerminals(bool selected) {
     widget.isSelectedTerminals = selected;
     widget.blocFilter.changeChips(2, widget.isSelectedTerminals);
+  }
+
+  _updateMarkersTerminals() {
     if (widget.isSelectedTerminals) {
       widget._allMarkers = [widget._allMarkers, widget._terminalsMarkers]
           .expand((x) => x)
@@ -335,8 +347,8 @@ class _ScreenMapState extends State<ScreenMap> {
     controller.setMapStyle(widget.mapStyle);
     controllerMap.complete(controller); // definindo o controller do mapa
     _loadMarkers(); // carrega os markers
-    /*   timer = Timer.periodic(
-        Duration(seconds: 2), (Timer t) async => await _updateBusLocation()); */
+    timer = Timer.periodic(
+        Duration(seconds: 2), (Timer t) async => await _updateBusLocation());
   }
 
   @override
@@ -358,6 +370,10 @@ class _ScreenMapState extends State<ScreenMap> {
             widget.isSelectedRoutes = snapshotFilter.data[1];
             widget.isSelectedTerminals = snapshotFilter.data[2];
             widget.isSelectedBusStops = snapshotFilter.data[3];
+            _updateMarkersBus();
+            _updateMarkersBusStop();
+            _updateMarkersTerminals();
+            _updatePolylinesRoutes();
             return Scaffold(
                 appBar: PreferredSize(
                   preferredSize: const Size.fromHeight(56),
@@ -372,7 +388,7 @@ class _ScreenMapState extends State<ScreenMap> {
                             showCheckmark: false,
                             label: Text('ÔNIBUS'),
                             onSelected: (bool selected) =>
-                                _updateMarkersBus(selected),
+                                _updateFilterBus(selected),
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
@@ -391,7 +407,7 @@ class _ScreenMapState extends State<ScreenMap> {
                             showCheckmark: false,
                             label: Text('ROTAS'),
                             onSelected: (bool selected) =>
-                                _updatePolylinesRoutes(selected),
+                                _updateFilterRoutes(selected),
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
@@ -410,7 +426,7 @@ class _ScreenMapState extends State<ScreenMap> {
                             showCheckmark: false,
                             label: Text('TERMINAIS'),
                             onSelected: (bool selected) =>
-                                _updateMarkersTerminals(selected),
+                                _updateFilterTerminals(selected),
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
@@ -429,7 +445,7 @@ class _ScreenMapState extends State<ScreenMap> {
                             showCheckmark: false,
                             label: Text('PONTOS'),
                             onSelected: (bool selected) =>
-                                _updateMarkersBusStop(selected),
+                                _updateFilterBusStop(selected),
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,

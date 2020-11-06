@@ -450,60 +450,54 @@ class _MuralScreenState extends State<MuralScreen> {
                                 : element is Routes
                                     ? Padding(
                                         padding: const EdgeInsets.all(8.0),
-                                        child: GestureDetector(
-                                          onTap: () => {}
-                                          /* _routeSelected(element) */,
+                                        child: Container(
+                                          //margin: EdgeInsets.only(bottom: 8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(18)),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.grey
+                                                    .withOpacity(0.5),
+                                                spreadRadius: 5,
+                                                blurRadius: 7,
+                                                offset: Offset(0,
+                                                    3), // changes position of shadow
+                                              ),
+                                            ],
+                                          ),
                                           child: Container(
-                                            //margin: EdgeInsets.only(bottom: 8),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.all(
-                                                  Radius.circular(18)),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.grey
-                                                      .withOpacity(0.5),
-                                                  spreadRadius: 5,
-                                                  blurRadius: 7,
-                                                  offset: Offset(0,
-                                                      3), // changes position of shadow
-                                                ),
-                                              ],
-                                            ),
-                                            child: Container(
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.fromLTRB(
-                                                        16, 12, 16, 12),
-                                                child: Row(
-                                                  children: [
-                                                    Align(
-                                                        alignment: Alignment
-                                                            .centerLeft,
-                                                        child:
-                                                            _leading(element)),
-                                                    Expanded(
-                                                      child: Padding(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                    .fromLTRB(
-                                                                32, 0, 0, 0),
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            _subtitle(element),
-                                                            SizedBox(
-                                                              height: 10,
-                                                            ),
-                                                            _lines(element),
-                                                          ],
-                                                        ),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.fromLTRB(
+                                                      16, 12, 16, 12),
+                                              child: Row(
+                                                children: [
+                                                  Align(
+                                                      alignment:
+                                                          Alignment.centerLeft,
+                                                      child: _leading(element)),
+                                                  Expanded(
+                                                    child: Padding(
+                                                      padding: const EdgeInsets
+                                                              .fromLTRB(
+                                                          32, 0, 0, 0),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          _subtitle(element),
+                                                          SizedBox(
+                                                            height: 10,
+                                                          ),
+                                                          _lines(element),
+                                                        ],
                                                       ),
                                                     ),
-                                                  ],
-                                                ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ),
@@ -584,13 +578,6 @@ class _MuralScreenState extends State<MuralScreen> {
     widget.blocBus.sendBus(bus);
     widget.blocNavigation.changeNavigationIndex(Navigation.MAP);
   }
-
-/*   _routeSelected(Routes route) {
-    CameraTargetBounds(bounds)
-    CameraPosition cameraPosition = CameraPosition()
-    widget.blocRoute.sendBus(route);
-    widget.blocNavigation.changeNavigationIndex(Navigation.MAP);
-  } */
 
   _busStopSelected(BusStop busStop) {
     CameraPosition cameraPosition = CameraPosition(
