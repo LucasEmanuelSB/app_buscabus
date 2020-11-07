@@ -1,4 +1,4 @@
-import 'package:app_buscabus/Screens/BottomNavigationBar/ScreensPageView.dart';
+import 'package:app_buscabus/Screens/ScreenPageView.dart';
 import 'package:flutter/material.dart';
 
 class Home extends StatefulWidget {

@@ -3,9 +3,9 @@ import 'dart:ui' as ui;
 import 'dart:typed_data';
 
 import 'package:app_buscabus/Constants.dart';
-import 'package:app_buscabus/Screens/BottomNavigationBar/MuralScreen.dart';
-import 'package:app_buscabus/Screens/BottomNavigationBar/ScreenBus.dart';
-import 'package:app_buscabus/Screens/BottomNavigationBar/ScreenMap.dart';
+import 'package:app_buscabus/Screens/ScreenMural.dart';
+import 'package:app_buscabus/Screens/ScreenBus.dart';
+import 'package:app_buscabus/Screens/ScreenMap.dart';
 import 'package:app_buscabus/models/Bus.dart';
 import 'package:app_buscabus/models/BusStop.dart';
 import 'package:app_buscabus/models/Routes.dart';
@@ -154,7 +154,7 @@ class _ScreensPageViewState extends State<ScreensPageView> {
   final _selectedBgColor = Constants.accent_blue;
   final _unselectedBgColor = Constants.white_grey;
 
-  MuralScreen muralScreen;
+  ScreenMural muralScreen;
   ScreenMap mapScreen;
   ScreenBus busScreen;
 
@@ -425,7 +425,7 @@ class _ScreensPageViewState extends State<ScreensPageView> {
           myIconsBusStops: myIconsBusStops,
           myIconsBusTerminals: myIconsBusTerminals,
           mapStyle: mapStyle);
-      muralScreen = MuralScreen(
+      muralScreen = ScreenMural(
           blocBus: blocBus,
           blocNavigation: blocNavigation,
           blocCameraPosition: blocCameraPosition,

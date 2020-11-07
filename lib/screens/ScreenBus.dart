@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:app_buscabus/Constants.dart';
-import 'package:app_buscabus/Screens/BottomNavigationBar/ScreensPageView.dart';
+import 'package:app_buscabus/Screens/ScreenPageView.dart';
 import 'package:app_buscabus/models/Bus.dart';
 import 'package:app_buscabus/models/BusStop.dart';
 import 'package:app_buscabus/models/Routes.dart';
-import 'package:app_buscabus/cameraFunctions.dart';
+import 'package:app_buscabus/CameraFunctions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -179,6 +179,9 @@ class _ScreenBusState extends State<ScreenBus> {
     String busMarkerId = 'Bus ' + bus.id.toString();
     Marker busMarker = Marker(
         markerId: MarkerId(busMarkerId),
+        infoWindow: InfoWindow(
+            title: "Linha " + bus.line.toString(),
+            snippet: "N° passageiros: " + bus.realTimeData.nDevices.toString()),
         position: markerPosition, // updated position
         icon: widget.myIconBus);
 
@@ -239,7 +242,7 @@ class _ScreenBusState extends State<ScreenBus> {
   @override
   void dispose() async {
     super.dispose();
-    await deviceBus.disconnect();
+    await deviceBus?.disconnect();
     blocBusBLE.dispose();
     timerBLE?.cancel();
     timerRealTimeData?.cancel();
@@ -286,19 +289,21 @@ class _ScreenBusState extends State<ScreenBus> {
           Map<String, dynamic> jsonData = _deserializableData(jsonBLE);
           bus = Bus.fromJson(jsonData);
           setState(() {
+            isBusBluetoothConnected = false;
             isBusBluetooth = true;
+            isErrorBLE = false;
+            isDataBLEOK = true;
           });
           blocBusBLE.sendBus(bus);
-          isDataBLEOK = true;
           await deviceBus.disconnect();
-          isBusBluetoothConnected = false;
-          isErrorBLE = false;
         }
       } catch (e) {
         print(e);
         await deviceBus.disconnect();
         setState(() {
           isBusBluetoothConnected = false;
+          isBusBluetooth = false;
+          isDataBLEOK = false;
           isErrorBLE = true;
         });
       }
@@ -939,38 +944,44 @@ class _ScreenBusState extends State<ScreenBus> {
     for (BluetoothDevice device in devicesList) {
       containers.add(
         Container(
-          height: 50,
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: <Widget>[
-                  RichText(
-                    text: TextSpan(
-                        style: TextStyle(
-                            fontFamily: 'Roboto', color: Constants.accent_blue),
-                        children: [
-                          TextSpan(
-                            text: 'Linha ',
-                          ),
-                          TextSpan(
-                              text: device.name == ''
-                                  ? '(unknown device)'
-                                  : device.name,
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                        ]),
-                  ),
-                  buttomBluetooth(device)
-                ],
-              ),
-              isErrorBLE == true
-                  ? Center(
-                      child: Text("Erro, tente novamente."),
-                    )
-                  : SizedBox(
-                      height: 0,
-                    )
-            ],
+          height: 600,
+          child: Expanded(
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: <Widget>[
+                    RichText(
+                      text: TextSpan(
+                          style: TextStyle(
+                              fontFamily: 'Roboto',
+                              color: Constants.accent_blue),
+                          children: [
+                            TextSpan(
+                              text: 'Linha ',
+                            ),
+                            TextSpan(
+                                text: device.name == ''
+                                    ? '(unknown device)'
+                                    : device.name,
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                          ]),
+                    ),
+                    buttomBluetooth(device),
+                    isBusBluetoothConnected
+                        ? CircularProgressIndicator()
+                        : SizedBox(),
+                  ],
+                ),
+                isErrorBLE == true && !isBusBluetoothConnected
+                    ? Center(
+                        child: Text("Erro, tente novamente."),
+                      )
+                    : SizedBox(
+                        height: 0,
+                      ),
+              ],
+            ),
           ),
         ),
       );

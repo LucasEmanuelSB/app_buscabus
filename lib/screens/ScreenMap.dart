@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:app_buscabus/cameraFunctions.dart';
+import 'package:app_buscabus/CameraFunctions.dart';
 import 'package:app_buscabus/Constants.dart';
 import 'package:app_buscabus/models/Bus.dart';
 import 'package:app_buscabus/models/BusStop.dart';
@@ -9,16 +9,15 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
-import 'package:app_buscabus/Screens/BottomNavigationBar/ScreensPageView.dart';
+import 'package:app_buscabus/Screens/ScreenPageView.dart';
 
-//ignore: must_be_immutable
+
 class ScreenMap extends StatefulWidget {
   ScreenMap(
       {this.blocNavigation,
       this.blocCameraPosition,
       this.blocFilter,
       this.blocBus,
-      this.busWithGps,
       this.blocPosition,
       this.blocRoute,
       this.blocCoordinates,
@@ -32,11 +31,6 @@ class ScreenMap extends StatefulWidget {
       this.myIconBus,
       this.myIconPerson,
       this.mapStyle});
-
-  bool isSelectedLines = false;
-  bool isSelectedRoutes = false;
-  bool isSelectedBusStops = false;
-  bool isSelectedTerminals = false;
 
   final List<BitmapDescriptor> myIconsBusStops;
   final List<BitmapDescriptor> myIconsBusTerminals;
@@ -57,12 +51,6 @@ class ScreenMap extends StatefulWidget {
   final List<BusStop> listTerminals;
   final List<Routes> listRoutes;
 
-  CameraPosition cameraPosition =
-      CameraPosition(target: LatLng(-26.89635815, -48.67252082), zoom: 16);
-
-  Bus busWithGps;
-
-  Set<Marker> _allMarkers = new Set<Marker>();
   final Set<Marker> _busStopsMarkers = {};
   final Set<Marker> _busesMarkers = {};
   final Set<Marker> _terminalsMarkers = {};
@@ -75,11 +63,19 @@ class ScreenMap extends StatefulWidget {
 }
 
 class _ScreenMapState extends State<ScreenMap> {
-  Completer<GoogleMapController> controllerMap = new Completer();
 
+  CameraPosition cameraPosition =
+      CameraPosition(target: LatLng(-26.89635815, -48.67252082), zoom: 16);
+
+  Bus busWithGps;
+  Set<Marker> _allMarkers = new Set<Marker>();
+  bool isSelectedLines = false;
+  bool isSelectedRoutes = false;
+  bool isSelectedBusStops = false;
+  bool isSelectedTerminals = false;
+  Completer<GoogleMapController> controllerMap = new Completer();
   Timer timer;
   double pixelRatio;
-
   bool isListRoutesComplete = false;
 
   @override
@@ -209,7 +205,7 @@ class _ScreenMapState extends State<ScreenMap> {
   _addMarkersBuses() {
     widget.listBuses.forEach((element) {
       if (element.id == Constants.busWithGpsId) {
-        widget.busWithGps = element;
+        busWithGps = element;
       }
       if (element.isAvailable) {
         if (element.realTimeData != null) {
@@ -233,9 +229,9 @@ class _ScreenMapState extends State<ScreenMap> {
   }
 
   _addMarkerPerson(Position position) {
-    widget._allMarkers
+    _allMarkers
         .removeWhere((marker) => marker.markerId == MarkerId("Person"));
-    widget._allMarkers.add(new Marker(
+    _allMarkers.add(new Marker(
         markerId: MarkerId("Person"),
         position: LatLng(position.latitude, position.longitude),
         infoWindow: InfoWindow(title: "Estou aqui"),
@@ -249,27 +245,27 @@ class _ScreenMapState extends State<ScreenMap> {
   }
 
   _updateFilterBus(bool selected) {
-    widget.isSelectedLines = selected;
-    widget.blocFilter.changeChips(0, widget.isSelectedLines);
+    isSelectedLines = selected;
+    widget.blocFilter.changeChips(0, isSelectedLines);
   }
 
   _updateMarkersBus() {
-    if (widget.isSelectedLines) {
-      widget._allMarkers =
-          [widget._allMarkers, widget._busesMarkers].expand((x) => x).toSet();
+    if (isSelectedLines) {
+      _allMarkers =
+          [_allMarkers, widget._busesMarkers].expand((x) => x).toSet();
     } else {
       List<Marker> toRemove = [];
-      widget._allMarkers.forEach((element) {
+      _allMarkers.forEach((element) {
         if (element.markerId.value.split(' ').toList().elementAt(0) == 'Bus') {
           toRemove.add(element);
         }
       });
-      widget._allMarkers.removeWhere((element) => toRemove.contains(element));
+      _allMarkers.removeWhere((element) => toRemove.contains(element));
     }
   }
 
   _updatePolylinesRoutes() {
-    if (widget.isSelectedRoutes) {
+    if (isSelectedRoutes) {
       _addPolylinesRoutes();
     } else {
       widget._polylines.clear();
@@ -277,78 +273,105 @@ class _ScreenMapState extends State<ScreenMap> {
   }
 
   _updateFilterRoutes(bool selected) {
-    widget.isSelectedRoutes = selected;
-    widget.blocFilter.changeChips(1, widget.isSelectedRoutes);
+    isSelectedRoutes = selected;
+    widget.blocFilter.changeChips(1, isSelectedRoutes);
   }
 
   _updateFilterBusStop(bool selected) {
-    widget.isSelectedBusStops = selected;
-    widget.blocFilter.changeChips(3, widget.isSelectedBusStops);
+    isSelectedBusStops = selected;
+    widget.blocFilter.changeChips(3, isSelectedBusStops);
   }
 
   _updateMarkersBusStop() {
-    if (widget.isSelectedBusStops) {
-      widget._allMarkers = [widget._allMarkers, widget._busStopsMarkers]
+    if (isSelectedBusStops) {
+      _allMarkers = [_allMarkers, widget._busStopsMarkers]
           .expand((x) => x)
           .toSet();
     } else {
       List<Marker> toRemove = [];
-      widget._allMarkers.forEach((element) {
+      _allMarkers.forEach((element) {
         if (element.markerId.value.split(' ').toList().elementAt(0) ==
             'BusStop') {
           toRemove.add(element);
         }
       });
-      widget._allMarkers.removeWhere((element) => toRemove.contains(element));
+      _allMarkers.removeWhere((element) => toRemove.contains(element));
     }
   }
 
   _updateFilterTerminals(bool selected) {
-    widget.isSelectedTerminals = selected;
-    widget.blocFilter.changeChips(2, widget.isSelectedTerminals);
+    isSelectedTerminals = selected;
+    widget.blocFilter.changeChips(2, isSelectedTerminals);
   }
 
   _updateMarkersTerminals() {
-    if (widget.isSelectedTerminals) {
-      widget._allMarkers = [widget._allMarkers, widget._terminalsMarkers]
+    if (isSelectedTerminals) {
+      _allMarkers = [_allMarkers, widget._terminalsMarkers]
           .expand((x) => x)
           .toSet();
     } else {
       List<Marker> toRemove = [];
-      widget._allMarkers.forEach((element) {
+      _allMarkers.forEach((element) {
         if (element.markerId.value.split(' ').toList().elementAt(0) ==
             'Terminal') {
           toRemove.add(element);
         }
       });
-      widget._allMarkers.removeWhere((element) => toRemove.contains(element));
+      _allMarkers.removeWhere((element) => toRemove.contains(element));
     }
   }
 
-  _updateBusLocation() async {
-    await widget.busWithGps.updateRealTimeData();
-    var markerPosition = LatLng(widget.busWithGps.realTimeData.latitude,
-        widget.busWithGps.realTimeData.longitude);
-    String busMarkerId = 'Bus ' + widget.busWithGps.id.toString();
-    Marker busMarker = Marker(
-        markerId: MarkerId(busMarkerId),
-        position: markerPosition, // updated position
-        icon: widget.myIconBus);
+  _centralizateCamera() {
+    List<double> lngs = _allMarkers
+        .toList()
+        .map<double>((m) => m.position.longitude)
+        .toList();
+    List<double> lats = _allMarkers
+        .toList()
+        .map<double>((m) => m.position.latitude)
+        .toList();
+    moveCameraBounds(getBounds(lats, lngs), controllerMap);
+  }
 
+  _updateBusLocation() async {
+    await busWithGps.updateRealTimeData();
+    var markerPosition = LatLng(busWithGps.realTimeData.latitude,
+        busWithGps.realTimeData.longitude);
+    String busMarkerId = 'Bus ' + busWithGps.id.toString();
+    Marker busMarker = new Marker(
+        markerId: MarkerId('Bus ' + busWithGps.id.toString()),
+        infoWindow: InfoWindow(
+            title: "Linha " + busWithGps.line.toString(),
+            snippet: "Ver detalhes",
+            onTap: () {
+              widget.blocBus.sendBus(busWithGps);
+              widget.blocCoordinates
+                  .sendCoordinates(widget.polylineCoordinates);
+              widget.blocNavigation.changeNavigationIndex(Navigation.BUS);
+            }),
+        position: markerPosition,
+        icon: widget.myIconBus /* BitmapDescriptor.defaultMarker */);
+    widget._busesMarkers.removeWhere((m) => m.markerId.value == busMarkerId);
+    widget._busesMarkers.add(busMarker);
     setState(() {
-      widget._allMarkers.removeWhere((m) => m.markerId.value == busMarkerId);
-      if (widget.isSelectedLines) widget._allMarkers.add(busMarker);
+      _allMarkers.removeWhere((m) => m.markerId.value == busMarkerId);
+      if (isSelectedLines) _allMarkers.add(busMarker);
     });
-    print("Latitude: " + widget.busWithGps.realTimeData.latitude.toString());
-    print("Longitude: " + widget.busWithGps.realTimeData.longitude.toString());
+    print("Latitude: " + busWithGps.realTimeData.latitude.toString());
+    print("Longitude: " + busWithGps.realTimeData.longitude.toString());
   }
 
   _onMapCreated(GoogleMapController controller) async {
     controller.setMapStyle(widget.mapStyle);
     controllerMap.complete(controller); // definindo o controller do mapa
     _loadMarkers(); // carrega os markers
-    timer = Timer.periodic(
-        Duration(seconds: 2), (Timer t) async => await _updateBusLocation());
+    _centralizateCamera();
+    try {
+      timer = Timer.periodic(
+          Duration(seconds: 2), (Timer t) async => await _updateBusLocation());
+    } catch (e) {
+      print(e);
+    }
   }
 
   @override
@@ -366,10 +389,10 @@ class _ScreenMapState extends State<ScreenMap> {
           initialData: filterchips,
           stream: widget.blocFilter.output,
           builder: (context, snapshotFilter) {
-            widget.isSelectedLines = snapshotFilter.data[0];
-            widget.isSelectedRoutes = snapshotFilter.data[1];
-            widget.isSelectedTerminals = snapshotFilter.data[2];
-            widget.isSelectedBusStops = snapshotFilter.data[3];
+            isSelectedLines = snapshotFilter.data[0];
+            isSelectedRoutes = snapshotFilter.data[1];
+            isSelectedTerminals = snapshotFilter.data[2];
+            isSelectedBusStops = snapshotFilter.data[3];
             _updateMarkersBus();
             _updateMarkersBusStop();
             _updateMarkersTerminals();
@@ -392,10 +415,10 @@ class _ScreenMapState extends State<ScreenMap> {
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
-                                color: widget.isSelectedLines
+                                color: isSelectedLines
                                     ? Constants.white_grey
                                     : Constants.accent_blue),
-                            selected: widget.isSelectedLines,
+                            selected: isSelectedLines,
                             selectedColor: Constants.green,
                             checkmarkColor: Constants.white_grey),
                       ),
@@ -411,10 +434,10 @@ class _ScreenMapState extends State<ScreenMap> {
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
-                                color: widget.isSelectedRoutes
+                                color: isSelectedRoutes
                                     ? Constants.white_grey
                                     : Constants.accent_blue),
-                            selected: widget.isSelectedRoutes,
+                            selected: isSelectedRoutes,
                             selectedColor: Constants.accent_grey,
                             checkmarkColor: Constants.white_grey),
                       ),
@@ -430,10 +453,10 @@ class _ScreenMapState extends State<ScreenMap> {
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
-                                color: widget.isSelectedTerminals
+                                color: isSelectedTerminals
                                     ? Constants.white_grey
                                     : Constants.accent_blue),
-                            selected: widget.isSelectedTerminals,
+                            selected: isSelectedTerminals,
                             selectedColor: Constants.accent_blue,
                             checkmarkColor: Constants.white_grey),
                       ),
@@ -449,10 +472,10 @@ class _ScreenMapState extends State<ScreenMap> {
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
-                                color: widget.isSelectedBusStops
+                                color: isSelectedBusStops
                                     ? Constants.white_grey
                                     : Constants.accent_blue),
-                            selected: widget.isSelectedBusStops,
+                            selected: isSelectedBusStops,
                             selectedColor: Constants.brightness_blue,
                             checkmarkColor: Constants.white_grey),
                       ),
@@ -479,7 +502,7 @@ class _ScreenMapState extends State<ScreenMap> {
                                       myLocationEnabled: false,
                                       compassEnabled: false,
                                       zoomControlsEnabled: false,
-                                      markers: widget._allMarkers,
+                                      markers: _allMarkers,
                                       polylines: widget._polylines,
                                     );
                                   } else {
@@ -500,18 +523,7 @@ class _ScreenMapState extends State<ScreenMap> {
                     right: 8,
                     child: IconButton(
                         icon: Icon(MdiIcons.selectMultipleMarker),
-                        onPressed: () {
-                          List<double> lngs = widget._allMarkers
-                              .toList()
-                              .map<double>((m) => m.position.longitude)
-                              .toList();
-                          List<double> lats = widget._allMarkers
-                              .toList()
-                              .map<double>((m) => m.position.latitude)
-                              .toList();
-                          moveCameraBounds(
-                              getBounds(lats, lngs), controllerMap);
-                        }),
+                        onPressed: () => _centralizateCamera()),
                   ),
                   Positioned(
                       bottom: 16,

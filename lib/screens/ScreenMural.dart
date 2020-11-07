@@ -7,11 +7,11 @@ import 'package:badges/badges.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
-import 'package:app_buscabus/Screens/BottomNavigationBar/ScreensPageView.dart';
+import 'package:app_buscabus/Screens/ScreenPageView.dart';
 
-//ignore: must_be_immutable
-class MuralScreen extends StatefulWidget {
-  MuralScreen(
+
+class ScreenMural extends StatefulWidget {
+  ScreenMural(
       {this.blocNavigation,
       this.blocCameraPosition,
       this.blocFilter,
@@ -32,15 +32,18 @@ class MuralScreen extends StatefulWidget {
   final List<BusStop> listBusStops;
   final List<Routes> listRoutes;
   final List<BusStop> listTerminals;
+
+  @override
+  _ScreenMuralState createState() => _ScreenMuralState();
+}
+
+class _ScreenMuralState extends State<ScreenMural> {
+
   bool isSelectedLines = false;
   bool isSelectedRoutes = false;
   bool isSelectedBusStops = false;
   bool isSelectedTerminals = false;
-  @override
-  _MuralScreenState createState() => _MuralScreenState();
-}
 
-class _MuralScreenState extends State<MuralScreen> {
   @override
   void initState() {
     super.initState();
@@ -49,16 +52,16 @@ class _MuralScreenState extends State<MuralScreen> {
   List<dynamic> _getList() {
     List<dynamic> lists = new List<dynamic>();
 
-    if (widget.isSelectedLines)
+    if (isSelectedLines)
       lists = [lists, widget.listBuses].expand((x) => x).toList();
 
-    if (widget.isSelectedRoutes)
+    if (isSelectedRoutes)
       lists = [lists, widget.listRoutes].expand((x) => x).toList();
 
-    if (widget.isSelectedBusStops)
+    if (isSelectedBusStops)
       lists = [lists, widget.listBusStops].expand((x) => x).toList();
 
-    if (widget.isSelectedTerminals)
+    if (isSelectedTerminals)
       lists = [lists, widget.listTerminals].expand((x) => x).toList();
 
     return lists;
@@ -186,10 +189,10 @@ class _MuralScreenState extends State<MuralScreen> {
               stream: widget.blocFilter.output,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  widget.isSelectedLines = snapshot.data[0];
-                  widget.isSelectedRoutes = snapshot.data[1];
-                  widget.isSelectedTerminals = snapshot.data[2];
-                  widget.isSelectedBusStops = snapshot.data[3];
+                  isSelectedLines = snapshot.data[0];
+                  isSelectedRoutes = snapshot.data[1];
+                  isSelectedTerminals = snapshot.data[2];
+                  isSelectedBusStops = snapshot.data[3];
                   return AppBar(
                     backgroundColor: Constants.white_grey,
                     actions: [
@@ -203,17 +206,17 @@ class _MuralScreenState extends State<MuralScreen> {
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
-                                color: widget.isSelectedLines
+                                color: isSelectedLines
                                     ? Constants.white_grey
                                     : Constants.accent_blue),
-                            selected: widget.isSelectedLines,
+                            selected: isSelectedLines,
                             onSelected: (bool selected) {
                               if (mounted) {
                                 setState(() {
-                                  widget.isSelectedLines =
-                                      !widget.isSelectedLines;
+                                  isSelectedLines =
+                                      !isSelectedLines;
                                   widget.blocFilter
-                                      .changeChips(0, widget.isSelectedLines);
+                                      .changeChips(0, isSelectedLines);
                                 });
                               }
                             },
@@ -230,17 +233,17 @@ class _MuralScreenState extends State<MuralScreen> {
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
-                                color: widget.isSelectedRoutes
+                                color: isSelectedRoutes
                                     ? Constants.white_grey
                                     : Constants.accent_blue),
-                            selected: widget.isSelectedRoutes,
+                            selected: isSelectedRoutes,
                             onSelected: (bool selected) {
                               if (mounted) {
                                 setState(() {
-                                  widget.isSelectedRoutes =
-                                      !widget.isSelectedRoutes;
+                                  isSelectedRoutes =
+                                      !isSelectedRoutes;
                                   widget.blocFilter
-                                      .changeChips(1, widget.isSelectedRoutes);
+                                      .changeChips(1, isSelectedRoutes);
                                 });
                               }
                             },
@@ -257,17 +260,17 @@ class _MuralScreenState extends State<MuralScreen> {
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
-                                color: widget.isSelectedTerminals
+                                color: isSelectedTerminals
                                     ? Constants.white_grey
                                     : Constants.accent_blue),
-                            selected: widget.isSelectedTerminals,
+                            selected: isSelectedTerminals,
                             onSelected: (bool selected) {
                               if (mounted) {
                                 setState(() {
-                                  widget.isSelectedTerminals =
-                                      !widget.isSelectedTerminals;
+                                  isSelectedTerminals =
+                                      !isSelectedTerminals;
                                   widget.blocFilter.changeChips(
-                                      2, widget.isSelectedTerminals);
+                                      2, isSelectedTerminals);
                                 });
                               }
                             },
@@ -284,17 +287,17 @@ class _MuralScreenState extends State<MuralScreen> {
                             labelStyle: TextStyle(
                                 fontFamily: 'Lato',
                                 fontWeight: FontWeight.bold,
-                                color: widget.isSelectedBusStops
+                                color: isSelectedBusStops
                                     ? Constants.white_grey
                                     : Constants.accent_blue),
-                            selected: widget.isSelectedBusStops,
+                            selected: isSelectedBusStops,
                             onSelected: (bool selected) {
                               if (mounted) {
                                 setState(() {
-                                  widget.isSelectedBusStops =
-                                      !widget.isSelectedBusStops;
+                                  isSelectedBusStops =
+                                      !isSelectedBusStops;
                                   widget.blocFilter.changeChips(
-                                      3, widget.isSelectedBusStops);
+                                      3, isSelectedBusStops);
                                 });
                               }
                             },
@@ -320,10 +323,10 @@ class _MuralScreenState extends State<MuralScreen> {
                       initialData: filterchips,
                       stream: widget.blocFilter.output,
                       builder: (context, snapshot) {
-                        widget.isSelectedLines = snapshot.data[0];
-                        widget.isSelectedRoutes = snapshot.data[1];
-                        widget.isSelectedTerminals = snapshot.data[2];
-                        widget.isSelectedBusStops = snapshot.data[3];
+                        isSelectedLines = snapshot.data[0];
+                        isSelectedRoutes = snapshot.data[1];
+                        isSelectedTerminals = snapshot.data[2];
+                        isSelectedBusStops = snapshot.data[3];
 
                         return ListView.builder(
                           itemCount: _getList().length,
