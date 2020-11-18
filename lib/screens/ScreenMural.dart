@@ -1,3 +1,4 @@
+import 'package:app_buscabus/Blocs.dart';
 import 'package:app_buscabus/Constants.dart';
 import 'package:app_buscabus/models/Bus.dart';
 import 'package:app_buscabus/models/BusStop.dart';
@@ -7,8 +8,6 @@ import 'package:badges/badges.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
-import 'package:app_buscabus/Screens/ScreenPageView.dart';
-
 
 class ScreenMural extends StatefulWidget {
   ScreenMural(
@@ -43,6 +42,7 @@ class _ScreenMuralState extends State<ScreenMural> {
   bool isSelectedRoutes = false;
   bool isSelectedBusStops = false;
   bool isSelectedTerminals = false;
+
 
   @override
   void initState() {
@@ -196,8 +196,9 @@ class _ScreenMuralState extends State<ScreenMural> {
                   return AppBar(
                     backgroundColor: Constants.white_grey,
                     actions: [
+
                       Padding(
-                        padding: const EdgeInsets.only(right: 12.0),
+                        padding: const EdgeInsets.only(right:Constants.filterChipDistance),
                         child: FilterChip(
                             elevation: 3,
                             backgroundColor: Constants.white_grey,
@@ -224,7 +225,7 @@ class _ScreenMuralState extends State<ScreenMural> {
                             checkmarkColor: Constants.white_grey),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(right: 12.0),
+                        padding: const EdgeInsets.only(right: Constants.filterChipDistance),
                         child: FilterChip(
                             elevation: 3,
                             backgroundColor: Constants.white_grey,
@@ -251,7 +252,7 @@ class _ScreenMuralState extends State<ScreenMural> {
                             checkmarkColor: Constants.white_grey),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(right: 12.0),
+                        padding: const EdgeInsets.only(right: Constants.filterChipDistance),
                         child: FilterChip(
                             elevation: 3,
                             backgroundColor: Constants.white_grey,
@@ -278,7 +279,7 @@ class _ScreenMuralState extends State<ScreenMural> {
                             checkmarkColor: Constants.white_grey),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(right: 12.0),
+                        padding: const EdgeInsets.only(right: Constants.filterChipDistance),
                         child: FilterChip(
                             elevation: 3,
                             backgroundColor: Constants.white_grey,

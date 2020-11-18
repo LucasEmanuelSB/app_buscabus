@@ -22,6 +22,7 @@ class Constants {
   static const String url_adresses = url + "adresses";
   static const String url_points = url + "points";
   static const String url_realTimeData = url + "realTimeData";
+  static const double filterChipDistance = 6;
 
   static const String SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
   static const String CHARACTERISTIC_UUID_TX =

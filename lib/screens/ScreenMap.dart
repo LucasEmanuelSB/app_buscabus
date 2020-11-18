@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:app_buscabus/Blocs.dart';
 import 'package:app_buscabus/CameraFunctions.dart';
 import 'package:app_buscabus/Constants.dart';
 import 'package:app_buscabus/models/Bus.dart';
@@ -9,7 +10,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
-import 'package:app_buscabus/Screens/ScreenPageView.dart';
 
 
 class ScreenMap extends StatefulWidget {
@@ -367,7 +367,7 @@ class _ScreenMapState extends State<ScreenMap> {
     _loadMarkers(); // carrega os markers
     _centralizateCamera();
     try {
-      timer = Timer.periodic(
+      timer = Timer.periodic( // Atualiza deslocamento do ônibus.
           Duration(seconds: 2), (Timer t) async => await _updateBusLocation());
     } catch (e) {
       print(e);
@@ -404,7 +404,7 @@ class _ScreenMapState extends State<ScreenMap> {
                     backgroundColor: Constants.white_grey,
                     actions: [
                       Padding(
-                        padding: const EdgeInsets.only(right: 12.0),
+                        padding: const EdgeInsets.only(right: Constants.filterChipDistance),
                         child: FilterChip(
                             elevation: 3,
                             backgroundColor: Constants.white_grey,
@@ -423,7 +423,7 @@ class _ScreenMapState extends State<ScreenMap> {
                             checkmarkColor: Constants.white_grey),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(right: 12.0),
+                        padding: const EdgeInsets.only(right: Constants.filterChipDistance),
                         child: FilterChip(
                             elevation: 3,
                             backgroundColor: Constants.white_grey,
@@ -442,7 +442,7 @@ class _ScreenMapState extends State<ScreenMap> {
                             checkmarkColor: Constants.white_grey),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(right: 12.0),
+                        padding: const EdgeInsets.only(right: Constants.filterChipDistance),
                         child: FilterChip(
                             elevation: 3,
                             backgroundColor: Constants.white_grey,
@@ -461,7 +461,7 @@ class _ScreenMapState extends State<ScreenMap> {
                             checkmarkColor: Constants.white_grey),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(right: 12.0),
+                        padding: const EdgeInsets.only(right: Constants.filterChipDistance),
                         child: FilterChip(
                             elevation: 3,
                             backgroundColor: Constants.white_grey,

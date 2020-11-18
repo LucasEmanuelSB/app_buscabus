@@ -1,7 +1,7 @@
 import 'dart:async';
 
+import 'package:app_buscabus/Blocs.dart';
 import 'package:app_buscabus/Constants.dart';
-import 'package:app_buscabus/Screens/ScreenPageView.dart';
 import 'package:app_buscabus/models/Bus.dart';
 import 'package:app_buscabus/models/BusStop.dart';
 import 'package:app_buscabus/models/Routes.dart';
@@ -60,13 +60,13 @@ class _ScreenBusState extends State<ScreenBus> {
   String eta;
   Bus bus = new Bus();
   bool isBusBluetoothConnected = false;
+  //bool isDataBLEOK = false;
   Marker busMarker;
   Position personPositon;
   String jsonBLE = "";
   Timer timerRealTimeData;
   Timer timerBLE;
   String routeETA = "0";
-  bool isDataBLEOK = false;
   bool isErrorBLE = false;
   bool isBusBluetooth = false;
   BluetoothDevice deviceBus;
@@ -170,8 +170,8 @@ class _ScreenBusState extends State<ScreenBus> {
         new CameraPosition(
             target:
                 LatLng(bus.realTimeData.latitude, bus.realTimeData.longitude),
-            zoom: 16,
-            tilt: 60),
+            zoom: 18,
+            tilt: 45),
         controllerMap);
     double lat1 = bus.realTimeData.latitude;
     double lng1 = bus.realTimeData.longitude;
@@ -226,7 +226,6 @@ class _ScreenBusState extends State<ScreenBus> {
   _onMapCreated(GoogleMapController controller) async {
     controller.setMapStyle(widget.mapStyle);
     controllerMap.complete(controller); // definindo o controller do mapa
-    _updateRealTimeData();
     if (lines.contains(bus.line.toString())) {
       timerRealTimeData = Timer.periodic(
           Duration(seconds: 2), (Timer t) async => await _updateRealTimeData());
@@ -289,23 +288,24 @@ class _ScreenBusState extends State<ScreenBus> {
           Map<String, dynamic> jsonData = _deserializableData(jsonBLE);
           bus = Bus.fromJson(jsonData);
           setState(() {
-            isBusBluetoothConnected = false;
+            //isDataBLEOK = true;
+            isBusBluetoothConnected = true;
             isBusBluetooth = true;
             isErrorBLE = false;
-            isDataBLEOK = true;
           });
           blocBusBLE.sendBus(bus);
-          await deviceBus.disconnect();
+          _sendDataBLE();
+
         }
       } catch (e) {
         print(e);
-        await deviceBus.disconnect();
+/*         await deviceBus.disconnect();
         setState(() {
+          //isDataBLEOK = false;
           isBusBluetoothConnected = false;
           isBusBluetooth = false;
-          isDataBLEOK = false;
           isErrorBLE = true;
-        });
+        }); */
       }
     });
   }
@@ -355,75 +355,64 @@ class _ScreenBusState extends State<ScreenBus> {
 
   Widget buttomBluetooth(final BluetoothDevice device) {
     deviceBus = device;
-
-    return StreamBuilder<Position>(
-        stream: widget.blocPosition.output,
-        builder: (context, snapshot) {
-          return RaisedButton.icon(
-              icon: Icon(
-                isBusBluetoothConnected
-                    ? MdiIcons.bluetoothConnect
-                    : MdiIcons.bluetooth,
-                color: isBusBluetoothConnected
-                    ? Constants.white_grey
-                    : Constants.accent_blue,
-              ),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18.0),
-                  side: BorderSide(color: Constants.accent_blue)),
+    return RaisedButton.icon(
+        icon: Icon(
+          isBusBluetoothConnected
+              ? MdiIcons.bluetoothConnect
+              : MdiIcons.bluetooth,
+          color: isBusBluetoothConnected
+              ? Constants.white_grey
+              : Constants.accent_blue,
+        ),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18.0),
+            side: BorderSide(color: Constants.accent_blue)),
+        color: isBusBluetoothConnected
+            ? Constants.accent_blue
+            : Constants.white_grey,
+        label: Text(
+          isBusBluetoothConnected ? "ONIBUS CONECTADO" : "CONECTE-SE AO ONIBUS",
+          style: TextStyle(
+              fontFamily: 'Roboto',
               color: isBusBluetoothConnected
-                  ? Constants.accent_blue
-                  : Constants.white_grey,
-              label: Text(
-                isBusBluetoothConnected
-                    ? "ONIBUS CONECTADO"
-                    : "CONECTE-SE AO ONIBUS",
-                style: TextStyle(
-                    fontFamily: 'Roboto',
-                    color: isBusBluetoothConnected
-                        ? Constants.white_grey
-                        : Constants.accent_blue),
-              ),
-              elevation: 2,
-              onPressed: () async {
-                setState(() {
-                  isBusBluetoothConnected = !isBusBluetoothConnected;
-                });
-                if (isBusBluetoothConnected) {
-                  try {
-                    await deviceBus.connect().timeout(
-                        Duration(milliseconds: 600),
-                        onTimeout: () => <BluetoothDevice>[]);
-                    isErrorBLE = false;
-                  } catch (e) {
-                    isErrorBLE = true;
-                    await deviceBus.disconnect();
-                    setState(() {
-                      isBusBluetoothConnected = false;
-                    });
-                    print(e);
-                  }
-                  serviceBus = await _discoveryService(
-                      deviceBus, Constants.SERVICE_UUID);
-
-                  isDataBLEOK == false
-                      ? _reciveJSON(_discoveryCharacteristc(
-                          serviceBus, Constants.CHARACTERISTIC_UUID_TX))
-                      : _sendDataBLE(snapshot.data);
-                } else {
-                  timerBLE.cancel();
-                  await deviceBus.disconnect();
-                }
+                  ? Constants.white_grey
+                  : Constants.accent_blue),
+        ),
+        elevation: 2,
+        onPressed: () async {
+          setState(() {
+            isBusBluetoothConnected = !isBusBluetoothConnected;
+          });
+          if (isBusBluetoothConnected) {
+            try {
+              await deviceBus.connect().timeout(Duration(milliseconds: 600),
+                  onTimeout: () => <BluetoothDevice>[]);
+              isErrorBLE = false;
+            } catch (e) {
+              isErrorBLE = true;
+              await deviceBus.disconnect();
+              setState(() {
+                isBusBluetoothConnected = false;
               });
+              print(e);
+            }
+            serviceBus =
+                await _discoveryService(deviceBus, Constants.SERVICE_UUID);
+
+            _reciveJSON(_discoveryCharacteristc(
+                serviceBus, Constants.CHARACTERISTIC_UUID_TX));
+          } else {
+            timerBLE.cancel();
+            await deviceBus.disconnect();
+          }
         });
   }
 
-  _sendDataBLE(Position position) async {
+  _sendDataBLE() async {
     timerBLE = Timer.periodic(
-        Duration(milliseconds: 2000),
-        (Timer t) async => position != null
-            ? await _sendCoordinatesBLE(serviceBus, position)
-            : null);
+        Duration(seconds: 3),
+        (Timer t) async => await _sendCoordinatesBLE(
+            serviceBus, widget.blocPosition.currentPosition));
   }
 
   _reciveJSON(BluetoothCharacteristic characteristic) {
@@ -1140,16 +1129,6 @@ class _ScreenBusState extends State<ScreenBus> {
                               height: 0,
                             )
                           : buttomBluetooth(deviceBus),
-                      isBusBluetooth == false
-                          ? SizedBox(
-                              height: 0,
-                            )
-                          : Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Center(
-                                  child: Text(
-                                      "Conecte-se novamente e envie suas coordenadas para este ônibus")),
-                            )
                     ],
                   ),
                 ),

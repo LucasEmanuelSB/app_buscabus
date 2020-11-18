@@ -1,4 +1,4 @@
-import 'package:app_buscabus/Screens/ScreenPageView.dart';
+import 'package:app_buscabus/screens/ScreenPageView.dart';
 import 'package:flutter/material.dart';
 
 class Home extends StatefulWidget {
@@ -11,6 +11,6 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
-    return ScreensPageView();
+    return ScreenPageView();
   }
 }
